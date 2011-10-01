@@ -1,0 +1,55 @@
+# Kickstart file for Fedora 15 with freeipa-server
+install
+text
+reboot
+lang en_US.UTF-8
+keyboard us
+network --bootproto dhcp
+#Root password
+rootpw rootroot
+firewall --enabled --ssh
+selinux --permissive
+timezone --utc America/New_York
+firstboot --disable
+bootloader --location=mbr --append="console=tty0 console=ttyS0,115200 rd_NO_PLYMOUTH"
+zerombr
+clearpart --all --initlabel
+autopart
+
+# basic packages to install
+%packages
+@core
+@base
+@base-x
+@fonts
+@LXDE
+@critical-path-lxde
+yum-utils
+sudo
+audit
+openssh-server
+openssh-clients
+iptables
+mc
+vim-enhanced
+acpid
+mc
+bash
+firefox
+
+%end
+
+# post installation scripts
+%post
+(
+set -x
+
+yum install -y --nogpgcheck --enablerepo=updates-testing freeipa-client
+
+ln -s --force /lib/systemd/system/graphical.target /etc/systemd/system/default.target
+
+chkconfig NetworkManager off
+chkconfig network on
+
+) > /root/ks-post-install.log
+%end

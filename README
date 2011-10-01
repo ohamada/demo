@@ -1,0 +1,4 @@
+IPA-demo
+
+base - preparing and maintaining base images
+installer - creates number of VMs with ipa and installs freeipa and makes it working
