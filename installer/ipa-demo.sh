@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -x
-
 ###############################################################################
 #############
 ####		FUNCTIONS DEFINITION
@@ -232,7 +230,7 @@ cert_folder=`pwd`/cert
 cert_filename=""
 
 # base image file
-installimage="ipa-ready-image.iso"
+installimage="ipa-ready-image.qcow2"
 baseimage=""
 
 # file containg VM names and ip addresses
@@ -263,7 +261,7 @@ osver=15
 disksize=10
 
 # remove file with host's ips and names
-if [ -d $hostfile ]
+if [ -f $hostfile ]
 then
 	rm -f $hostfile
 fi
@@ -272,6 +270,12 @@ fi
 echo "" &>> $logfile
 echo "NEW RECORD, date:`getDate`" &>> $logfile
 echo "" &>> $logfile
+
+#############################################
+## WELCOME MESSAGE
+#############################################
+echo "Welcome to IPA-DEMO script for automatic setting up of VM's enviroment and installation of freeipa-server and -clients."
+
 
 #############################################
 ########## DEALING WITH PARAMETERS
@@ -364,6 +368,7 @@ if [ -z "$baseimage" ]
 then
 	if [ -f $installimage ]
 	then
+		echo "Movint base image to the same directory that should contain VM's images: $imgdir"
 		mv $installimage $imgdir/$installimage
 		baseimage=$imgdir/$installimage
 	elif [ -f "$imgdir/$installimage" ]
@@ -377,6 +382,7 @@ else
 	baseimage=`lastCharInPath $baseimage`
 	if [ `checkForWebAddress $baseimage` -eq 1 ]
 	then
+		echo "Downloading base image:"
 		wget $baseimage -O $imgdir/$installimage
 		if [ ! $? -eq 0 ]
 		then
@@ -406,6 +412,7 @@ then
 else
 	if [ `checkForWebAddress $cert_filename` -eq 1 ]
 	then
+		echo "Downloading ssh key:"
 		wget $cert_filename -O $cert_name
 		if [ ! $? -eq 0 ]
 		then
@@ -428,11 +435,12 @@ fi
 #########
 ###############################################
 
+echo "Creating disk image for server VM"
 # create disk image for new VM
-createDiskImage $baseimage "$imgdir/$servername.iso" $logfile
+createDiskImage $baseimage "$imgdir/$servername.qcow2" $logfile
 
 # prepare xml definition of VM that will be used to run system update
-virtImageXml $servername "$imgdir/$servername.iso" $vcpu $vram $arch
+virtImageXml $servername "$imgdir/$servername.qcow2" $vcpu $vram $arch
 
 # start VM defined by XML file
 virt-image $servername.xml &>> $logfile
@@ -453,9 +461,19 @@ echo "Running installation of freeipa-server on server VM. This could take up to
 # copy server install script to server
 cat freeipa-server-install.sh | ssh $sshopt -i $cert_filename $user_name@"$serverip" "cat ->>~/freeipa-server-install.sh" &>> $logfile
 
+if [ ! $? -eq 0 ]
+then
+	echo "Can not connect to VM." >&2
+	exit 1
+fi
+
 ssh $sshopt $user_name@$serverip -i $cert_filename "sudo sh ~/freeipa-server-install.sh -d $domain -c $serverhostname -r $realm -p $password -e $password" &>> $logfile
 
+ssh $sshopt $user_name@$serverip -i $cert_filename "sudo printf \"$user_name\n$user_name\" | ipa user-add $user_name --first=ipa --last=demo --password" &>> $logfile
+
 rm -f $servername.xml
+
+echo "Server installation done."
 
 # CLIENTS INSTALLATION
 
@@ -467,10 +485,10 @@ while [ $clientcnt -lt $clientnr ]; do
 	clienthostname="client-$clientcnt"
 	
 	# create disk image for new VM
-	createDiskImage $baseimage "$imgdir/$clientname.iso" $logfile
+	createDiskImage $baseimage "$imgdir/$clientname.qcow2" $logfile
 
 	# prepare xml definition of VM that will be used to run system update
-	virtImageXml $clientname "$imgdir/$clientname.iso" $vcpu $vram $arch
+	virtImageXml $clientname "$imgdir/$clientname.qcow2" $vcpu $vram $arch
 
 	# start VM defined by XML file
 	virt-image $clientname.xml &>> $logfile
@@ -498,14 +516,28 @@ while [ $clientcnt -lt $clientnr ]; do
 	echo "Adding host to IPA domain."
 	# add host to IPA
 	ssh $sshopt -i $cert_filename $user_name@"$serverip" "sudo ipa host-add $clienthostname.$domain --ip-address=$clientip --password=$password" &>> $logfile
+	
+	if [ ! $? -eq 0 ]
+	then
+		echo "Can not connect to server VM." >&2
+		exit 1
+	fi
 
 	echo "Installing freeipa-client on client's VM"
 	# copy client install script to client and execute it
 	cat $clientsh | ssh $sshopt -i $cert_filename $user_name@"$clientip" "cat ->>~/$clientsh" &>> $logfile
+	
+	if [ ! $? -eq 0 ]
+	then
+		echo "Can not connect to client VM." >&2
+		exit 1
+	fi
+	
 	ssh $sshopt -i $cert_filename $user_name@"$clientip" "sudo sh ~/$clientsh -d $domain -c $clienthostname -s $serverhostname -p $password -n $serverip" &>> $logfile
 	
 	clientcnt=$(($clientcnt + 1))
 	rm -f $clientname.xml
+	echo "Client installation done."
 # end while
 done
 
