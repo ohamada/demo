@@ -109,6 +109,9 @@ echo "nameserver $dns" > /etc/resolv.conf
 
 configeth0 $eth0conf $dns
 
+chkconfig network on
+chkconfig NetworkManager off
+service NetworkManager stop
 service network restart
 
 # run the install

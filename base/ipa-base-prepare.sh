@@ -168,7 +168,7 @@ function prepareKickstart {
 	head -$lines $tempfile > $2
 	
 	# install all ipa dependencies except ds, pki a freeipa pkgs
-	echo "yum -y install --enablerepo=updates-testing --nogpgcheck `getIpaDependency`" >> $2
+	echo "yum -y install --enablerepo=updates-testing --nogpgcheck bind bind-dyndb-ldap `getIpaDependency`" >> $2
 	
 #	echo "useradd -K CREATE_HOME=yes $3 -u 1111" >> $2
 #	echo "echo \"$3\" | passwd $3 --stdin" >> $2
@@ -256,57 +256,6 @@ function virtImageXml ()
 	
 }
 
-# function to get network device name
-# $1 - potencial name of device
-
-function getNetworkDeviceName ()
-{
-	for citac in `seq 0 255`; do
-		if [ -z "`brctl show | grep $1$citac`" ]
-		then
-			retval="$1$citac"
-			break
-		fi
-	done
-	echo $retval
-}
-
-# function to get number of subnetwork
-function getSubnetNumber ()
-{
-	for citac in `seq 10 254`; do
-		if [ -z "`ip -4 addr show | grep 192.168.$citac`"]
-		then
-			retval=$citac
-			break
-		fi
-	done
-	echo "$citac"
-}
-
-# function for creating network
-# $1 - name of network device
-# $2 - name of network
-function createNetwork ()
-{
-	devname=`getNetworkDeviceName $1`
-	subnet=`getSubnetNumber`	
-	
-	
-	printf "<network>"
-	
-	printf "\t<name>$2</name>"
-	printf "\t<bridge name=\"$devname\" />"
-	printf "\t<forward/>"
-	printf "\t<ip address=\"192.168.$subnet.1\" netmask=\"255.255.255.0\">"
-	printf "\t\t<dhcp>"
-	printf "\t\t\t<range start=\"192.168.$subnet.2\" end=\"192.168.$subnet.254\" />"
-	printf "\t\t</dhcp>"
-	printf "\t</ip>"
-	
-	printf "</network>"
-}
-
 # function to check whether the user is root
 function checkRoot ()
 {
@@ -369,6 +318,8 @@ function getLastImage()
 	fi
 }
 
+# cuts off last backslach in directory address - just to make it compatible
+# $1 - address to be checked
 function lastCharInPath()
 {
 	if [ "${1: -1}" == "/" ]
@@ -442,13 +393,10 @@ repo=http://download.fedoraproject.org/pub/fedora/linux/releases/$osver/Fedora/$
 # name of directory containing archived base images
 archive=archive
 
-# remove file with host's ips and names
-if [ -d $hostfile ]
-then
-	rm -f $hostfile
-fi
-
 ############
+
+# check whether required packages are installed
+checkDependencies
 # Check whether user is root
 checkRoot
 
@@ -494,9 +442,11 @@ while [ ! -z $1 ]; do
 		;;
 		
 	-h) printHelp
+		exit 0
 		;;
 		
 	--help) printHelp
+			exit 0
 		;;
 		
 	\?) echo "Unknown parameter $1"
@@ -536,9 +486,6 @@ fi
 ###############################################
 ########## END OF ARGUMENTS
 ###############################################
-
-# check whether required packages are installed
-checkDependencies
 
 ###############################################
 #########
@@ -674,12 +621,12 @@ else
 		echo "Unable to create VM! Check log file: $logfile"
 		exit 1
 	fi
-		
+	
 	# get the machine ip
 	echo "Starting VM."
 	machineip=`getVmIp $vmname`
 	
-	waitForStart $machineip $cert_filename $log
+	waitForStart $machineip $cert_filename $logfile
 	
 	# update system
 	echo "Running system update"

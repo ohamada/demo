@@ -142,6 +142,10 @@ fi
 
 configeth0 $eth0conf $dns
 
+chkconfig network on
+chkconfig NetworkManager off
+service NetworkManager stop
+
 # restart network services
 service network restart
 
