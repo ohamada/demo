@@ -97,7 +97,7 @@ function createSshCert {
 		rm -f $1
 		rm -f $1.pub
 	fi
-	echo $1
+
 	ssh-keygen -t rsa -f $1 -N '' -C "ipademo" &>> $2
 }
 
@@ -298,7 +298,6 @@ function getDate ()
 # $3 - first part of image name, examp. "f15-ipa-base-image"
 function getLastImage()
 {
-	set -x
 	difference=$1
 	for i in `ls $2 | grep $3`; do
 		imgdate=`echo $i | awk -F\. '{print $2}'`
@@ -314,7 +313,7 @@ function getLastImage()
 	then
 		echo ""
 	else
-		echo "$imgname.$result.iso"	
+		echo "$imgname.$result.qcow2"	
 	fi
 }
 
@@ -337,8 +336,6 @@ function lastCharInPath()
 #################################################################################
 
 # make all commands visible
-#set -x
-
 updatebase=0
 createbase=0
 installipa=0
@@ -346,11 +343,11 @@ installipa=0
 # log files
 logfile=ipa-base-prepare.log
 
-# file name format: f15-ipa-demo-base.date.iso
+# file name format: f15-ipa-demo-base.date.qcow2
 # file with new image
 imgname="f15-ipa-demo-base"
-workingimage="ipa-working-image.iso"
-installimage="ipa-ready-image.iso"
+workingimage="ipa-working-image.qcow2"
+installimage="ipa-ready-image.qcow2"
 
 # file with base image
 baseimg=""
@@ -493,23 +490,21 @@ fi
 #########
 ###############################################
 
-imgfile=$imgname.`getDate`.iso
+imgfile=$imgname.`getDate`.qcow2
 workingdir=`pwd`
-
-set -x
 
 if [ $createbase -eq 1 ]
 then
 	if [ -z $imgfile ]
 	then
-		echo "Image file wasn't specified"
+		echo "Image file wasn't specified" >&2
 		exit 1
 	fi
 
 	# create folder for achivation of base images and set it as readable for everyone
 	if [ -d $archive ]
 	then
-		echo "Folder $archive alerady exists! Please specify another folder for archiving base images."
+		echo "Folder $archive alerady exists! Please specify another folder for archiving base images." >&2
 		exit 1
 	else
 		mkdir $archive
@@ -525,7 +520,7 @@ then
 		
 		if [ -d $cert_folder ]
 		then
-			echo "Folder $cert_folder already exists! Please specify another folder to store certificates!"
+			echo "Folder $cert_folder already exists! Please specify another folder to store certificates!" >&2
 			exit 1
 		else 
 			mkdir $cert_folder
@@ -541,7 +536,7 @@ then
 	else
 		if [ ! -f $cert_filename ]
 		then
-			echo "Specified SSH key doesn't exist!"
+			echo "Specified SSH key doesn't exist!" >&2
 			exit 1
 		fi
 	fi
@@ -567,7 +562,7 @@ else
 	
 	currentdate=`getDate`
 	
-	newbaseimg=$imgname.$currentdate.iso
+	newbaseimg=$imgname.$currentdate.qcow2
 	
 	# create folder for saving certificate
 	cert_folder=`lastCharInPath $cert_folder`
@@ -580,7 +575,7 @@ else
 	# check existence of SSH key
 	if [ ! -f $cert_filename ]
 	then
-		echo "Certificate $cert_filename doesn't exist!"
+		echo "Certificate $cert_filename doesn't exist!" >&2
 		exit 1
 	fi
 	
@@ -590,23 +585,23 @@ else
 		# check existence of archive folder
 		if [ ! -d $archive ]
 		then
-			echo "Folder $archive doesn't exist!"
+			echo "Folder $archive doesn't exist!" >&2
 			exit 1
 		fi
 		if [ -z "`getLastImage $currentdate $archive $imgname`" ]
 		then
-			echo "No base images found!"
+			echo "No base images found!" >&2
 			exit 1
 		fi
 		
-		qemu-img create -b $archive/`getLastImage $currentdate $archive $imgname` -f qcow2 "$workingimage"
+		qemu-img create -b $archive/`getLastImage $currentdate $archive $imgname` -f qcow2 "$workingimage" &>> $logfile
 	else
-		qemu-img create -b $baseimage -f qcow2 "$workingimage"
+		qemu-img create -b $baseimage -f qcow2 "$workingimage" &>> $logfile
 	fi
 	
 	if [ ! $? -eq 0 ]
 	then
-		echo "Unable to create working copy of base image!"
+		echo "Unable to create working copy of base image!" >&2
 		exit 1
 	fi
 	
@@ -618,7 +613,7 @@ else
 	
 	if [ ! $? -eq 0 ]
 	then
-		echo "Unable to create VM! Check log file: $logfile"
+		echo "Unable to create VM! Check log file: $logfile" >&2
 		exit 1
 	fi
 	
@@ -631,6 +626,11 @@ else
 	# update system
 	echo "Running system update"
 	ssh $sshopt -i $cert_filename root@$machineip 'yum update -y --enablerepo=updates-testing' &>> $logfile
+	if [ ! $? -eq 0 ]
+	then
+		echo "Can not connect to VM." >&2
+		exit 1
+	fi
 	
 	# if installation of freeipa-server was chosen
 	if [ $installipa -eq 1 ]
@@ -647,6 +647,12 @@ else
 	
 	echo "Saving new base image!"
 	qemu-img convert "$workingimage" -O qcow2 $newbaseimg &>> $logfile
+	
+	if [ ! $? -eq 0 ]
+	then
+		echo "Saving of base image failed" >&2
+		exit 1
+	fi
 	
 	# clean VM used for preparing the machine and also temporary image
 	virsh undefine $vmname &>> $logfile
