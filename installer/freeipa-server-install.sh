@@ -140,14 +140,13 @@ then
 	echo "nameserver $IPADDR" >> /etc/resolv.conf
 fi
 
+service NetworkManager stop
+chkconfig NetworkManager off
+chkconfig network on
+
 configeth0 $eth0conf $dns
 
-chkconfig network on
-chkconfig NetworkManager off
-service NetworkManager stop
-
-# restart network services
-service network restart
+service network start
 
 # freeipa server installation with DNS
 ipa-server-install --realm=$REALM --domain=$DOMAIN --ds-password=$PASSWD --master-password=$PASSWD --admin-password=$PASSWD --setup-dns --no-forwarders --hostname=$HOST.$DOMAIN --ip-address=$IPADDR -U

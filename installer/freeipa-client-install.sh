@@ -107,13 +107,13 @@ echo "hostname $clienthostname.$domain"
 # set new dns server
 echo "nameserver $dns" > /etc/resolv.conf
 
+service NetworkManager stop
+chkconfig NetworkManager off
+chkconfig network on
+
 configeth0 $eth0conf $dns
 
-chkconfig network on
-chkconfig NetworkManager off
-service NetworkManager stop
-service network restart
+service network start
 
 # run the install
 ipa-client-install --server=$serverhostname.$domain --domain=$domain --hostname=$clienthostname.$domain --password=$password --enable-dns-updates -U
-
