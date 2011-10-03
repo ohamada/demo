@@ -326,7 +326,7 @@ while [ ! -z $1 ]; do
 			exit 0
 		;;
 		
-	\?) echo "Unknown parameter $1"
+	*) echo "Unknown parameter $1"
 	    exit 1
 		;;
 	esac

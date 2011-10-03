@@ -1,4 +1,20 @@
 IPA-demo
 
-base - preparing and maintaining base images
-installer - creates number of VMs with ipa and installs freeipa and makes it working
+Script tool for setting up enviroment of virtual machines for demonstration of FreeIPA capabilities.
+
+ipa-base-prepare.sh - tool for creating and updating base image that is later used for creating virtual machines
+ipa-demo.sh - tool for creating virtual machines enviroment. Responsible for creating virtual machines and installing freeipa into them.
+
+Scripts were tested on Fedora 15 x86_64. Virtual machines are also Fedora 15 x86_64 systems.
+
+It's supposed that you have installed and running qemu-kvm, python-virtinst, openssh-clients, libguestfs-tools-c. Optionaly you can install virt-manager and/or virt-viewer.
+
+Default directory for storing images is /var/lib/libvirt/images. If you want to use another one, you have to create it before.
+
+Be sure you have enough disk space - at least two "base images" will be used what means about 5 GB at least.
+
+-Create directory and copy all necessary files into it (ipa-base-prepare.sh, ipa-demo.sh, f15-freeipa-base.ks.temp, freeipa-client-install.sh, freeipa-server-install.sh).
+-Run as root following commands in this order:
+	1) ./ipa-base-prepare.sh --createbase
+	2) ./ipa-base-prepare.sh --installipa
+	3) ./ipa-demo.sh

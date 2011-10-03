@@ -58,16 +58,17 @@ function isNumber {
 }
 
 # function that prints help
+# $1 - repository address
 function printHelp {
-	echo "Ipa-demo installation script"
-	echo "This script should help you through setting up freeipa server and client in order to be able to try it out."
+	echo "Ipa-base-prepare script"
+	echo "This script should help you prepare base images to allow you create virtual machines that are ready for FreeIPA installation."
 	echo " ATTENTION: You must have kvm and libguestfs-tools-c installed to run the script correctly."
 	echo "usage: ipa-demo.sh [-d dir][-r repoaddr][-c clientnr][-h]"
 	echo "-h - print help"
-	echo "-b - specify one base image"
+	echo "-b - specify one base image  - if you want to use base images that is older or located in different directory then the archive."
 	echo "--archive - specify directory containing base images"
 	echo "--sshkey - specify private ssh key to be used. It's supposed that public key has the same name with \'.pub\' suffix. The key will be used for connecting to VMs."
-	echo "-r - set fedora repository"
+	echo "-r - set fedora repository, by default it's: $1"
 	echo "--createbase - create base image"
 	echo "--updatebase - update base image"
 	echo "--installipa - prepare installation image - take actual base image and install freeipa-server with all dependencies into it"
@@ -438,15 +439,15 @@ while [ ! -z $1 ]; do
 	-r) repo=$2
 		;;
 		
-	-h) printHelp
+	-h) printHelp $repo
 		exit 0
 		;;
 		
-	--help) printHelp
+	--help) printHelp $repo
 			exit 0
 		;;
 		
-	\?) echo "Unknown parameter $1"
+	*) echo "Unknown parameter $1"
 	    exit 1
 		;;
 	esac
