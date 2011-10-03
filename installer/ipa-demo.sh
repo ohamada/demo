@@ -179,9 +179,9 @@ checkForWebAddress ()
 	
 	if [ -z "$http" -a -z "$ftp" ]
 	then
-		return 1
-	else
 		return 0
+	else
+		return 1
 	fi
 	return 0
 }
@@ -290,6 +290,7 @@ while [ ! -z $1 ]; do
 				exit 1
 			fi
 			baseimage=$2
+			shift
 			;;
 
 	--sshkey) 
@@ -299,6 +300,7 @@ while [ ! -z $1 ]; do
 					exit 1
 				fi
 				cert_filename=$2
+				shift
 				;;
 	--imgdir) 
 				if [ -z $2 ]
@@ -307,6 +309,7 @@ while [ ! -z $1 ]; do
 					exit 1
 				fi
 				imgdir=$2
+				shift
 				;;
 	
 	--clients) 
@@ -316,6 +319,7 @@ while [ ! -z $1 ]; do
 					exit 1
 				fi
 				clientnr=$2
+				shift
 				;;
 
 	-h) printHelp $installimage $imgdir $clientnr
@@ -339,6 +343,12 @@ then
 	echo "Directory for storing images doesn't exist!" >&2
 	exit 1
 fi
+
+# get full path to image dir
+workdir=`pwd`
+cd $imgdir
+imgdir=`pwd`
+cd $workdir
 
 isNumber $clientnr
 if [ $? -eq 1 ]
@@ -368,7 +378,7 @@ if [ -z "$baseimage" ]
 then
 	if [ -f $installimage ]
 	then
-		echo "Movint base image to the same directory that should contain VM's images: $imgdir"
+		echo "Moving base image to the same directory that should contain VM's images: $imgdir"
 		mv $installimage $imgdir/$installimage
 		baseimage=$imgdir/$installimage
 	elif [ -f "$imgdir/$installimage" ]
@@ -393,8 +403,12 @@ else
 	else
 		if [ ! -f $baseimage ]
 		then
-			echo "Cannot find base image!" >&2
+			echo "Can't find base image!" >&2
 			exit 1
+		else
+			echo "Moving base image to the same directory that should contain VM's images: $imgdir"
+			mv $baseimage $imgdir/$installimage
+			baseimage=$imgdir/$installimage
 		fi
 	fi
 fi
@@ -467,11 +481,14 @@ then
 	exit 1
 fi
 
+# install freeipa-server
 ssh $sshopt $user_name@$serverip -i $cert_filename "sudo sh ~/freeipa-server-install.sh -d $domain -c $serverhostname -r $realm -p $password -e $password" &>> $logfile
 
-ssh $sshopt $user_name@$serverip -i $cert_filename "printf \"$user_name\n$user_name\" | sudo ipa user-add $user_name --first=ipa --last=demo --password" &>> $logfile
-
+# remove xml file
 rm -f $servername.xml
+
+# add user ipademo to freeipa
+ssh $sshopt $user_name@$serverip -i $cert_filename "printf \"$user_name\n$user_name\" | sudo ipa user-add $user_name --first=ipa --last=demo --password" &>> $logfile
 
 echo "Server installation done."
 
