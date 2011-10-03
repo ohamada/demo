@@ -469,7 +469,7 @@ fi
 
 ssh $sshopt $user_name@$serverip -i $cert_filename "sudo sh ~/freeipa-server-install.sh -d $domain -c $serverhostname -r $realm -p $password -e $password" &>> $logfile
 
-ssh $sshopt $user_name@$serverip -i $cert_filename "sudo printf \"$user_name\n$user_name\" | ipa user-add $user_name --first=ipa --last=demo --password" &>> $logfile
+ssh $sshopt $user_name@$serverip -i $cert_filename "printf \"$user_name\n$user_name\" | sudo ipa user-add $user_name --first=ipa --last=demo --password" &>> $logfile
 
 rm -f $servername.xml
 
