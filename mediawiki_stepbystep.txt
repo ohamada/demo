@@ -1,0 +1,88 @@
+1) Install following packages: 
+	httpd mysql mysql-server php php-mysql mod_auth_kerb mod_nss mediawiki
+	it's also supposed that you have installed freeipa-admintools on client which runs mediawiki
+
+Mediawiki installation:
+2) start mysqld and httpd services and make them start on system startup
+	service mysqld start
+	service httpd start
+	chkconfig httpd on
+	chkconfig mysqld on
+3) configure mysql:
+	a) run mysql_secure_installation, set root password
+	b) create databese(wikidb) and user(wikiuser) with privileges to it, set password for wikiuser(aaaa)
+	c) 	mysql -u root -p
+		create database wikidb;
+		create user wikiuser@localhost identified by "aaaa";
+		grant all on wikidb.* to wikiuser@localhost;
+		flush privileges;
+
+4) install mediawiki
+	- edit /etc/httpd/conf.d/mediawiki.conf and uncomment the first two 'Alias' lines
+	- restart httpd
+	- open web browser and go to address client-0.example.com/wiki
+	- fill in the installation form, the proceed according to instructions
+
+5) add new service for mediawiki:
+	- get admin kerberos ticket and run 'ipa service-add HTTP/client-0.example.com', this command could be run on ipa-server machine or any other with installed freeipa-admintools
+
+Now on client with mediawiki:
+6) ipa-getkeytab -s master.example.com -p HTTP/client-0.example.com -k /etc/httpd/conf/http.keytab
+7) set keytab owner to apache
+8) set mediawiki to be protected by kerberos:
+	add to /etc/httpd/conf.d/mediawiki.conf
+	<Location "/wiki">
+	  AuthType Kerberos
+	  AuthName "Kerberos Login"
+	  KrbMethodNegotiate on
+	  KrbMethodK5Passwd off
+	  KrbServiceName HTTP
+	  KrbAuthRealms EXAMPLE.COM
+	  Krb5KeyTab /etc/httpd/conf/http.keytab
+	  KrbSaveCredentials off
+	  Require valid-user
+	</Location>
+9) add rewrite rules to activate SSL
+	add to /etc/httpd/conf.d/mediawiki.conf
+	RewriteCond %{SERVER_PORT}  !^443$
+	RewriteCond %{REQUEST_URI}  ^/wiki/
+	RewriteRule ^/(.*) https://client-0.example.com/$1 [L,R]
+
+	# Make sure the host is fully qualified
+	#RewriteCond %{HTTP_HOST} ^wiki$
+	#RewriteRule ^/(.*) https://client-0.example.com/$1 [L,R]
+10) create new NSS database
+	certutil -N -d /etc/httpd/alias
+	you'll be prompted to set password for the database, choose an easy one like 'aaaaaaaa' (8x"a")
+11) create a certificate request
+	certutil -R -s "CN=client-0.example.com, O=EXAMPLE.COM" -d /etc/httpd/alias -a > mediawiki.csr
+12) request the certificate from server
+	ipa cert-request --principal=HTTP/client-0.example.com mediawiki.csr
+	remember the certificate number
+13) save the created certificate into a file
+	ipa cert-show #number --out=wikicert.crt
+14) add the certificate to client-0 nss database under the name "Https-cert"
+	certutil -A -d /etc/httpd/alias/ -n "Https-cert" -a -i wikicert-crt -t ",,"
+15) save the NSS db password from step 10 into a file and make it readable by apache
+	echo "internal:aaaaaaaa" > /etc/httpd/alias/passwd.txt
+	chown apache /etc/httpd/alias/passwd.txt
+	chmod 600 /etc/httpd/alias/passwd.txt
+16) edit NSS configuration file, usually stored in /etc/httpd/conf.d/nss.conf:
+    - change the VirtualHost openning tag to look like this: <VirtualHost _default_:443>
+    (some/all of these settings could already be there, so check for duplicity)
+	Listen 443
+	NSSRenegotiation on
+	NSSRequireSafeNegotiation on
+	NSSEnforceValidCerts off
+	NSSNickName "Https-cert"
+	NSSPassPhraseDialog "file:/etc/httpd/alias/passwd.txt"
+17) set firewall to allow communication on ports 80 and 443
+	iptables -I INPUT -p tcp--dport 80 -j ACCEPT
+	iptables -I INPUT -p tcp--dport 80 -j ACCEPT
+18) restart the httpd service
+	service httpd restart
+
+Now we have configure mediawiki secured by SSL and access to the wiki is secured by kerberos.
+
+
+
