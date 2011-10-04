@@ -1,9 +1,0 @@
-Ipa-demo installation script
-This script should help you through setting up freeipa server and client in order to be able to try it out.
- ATTENTION: You must have qemu-kvm and libguestfs-tools-c installed to run the script correctly.
-usage: ipa-demo.sh [--imgdir dir][--sshkey keyfile][-clients clientnr][--base baseimg][-h|--help]
--h,--help - print help
---imgdir - set directory to store images. By default "/var/lib/libvirt/images".
---sshkey - specify sshkey for connecting to the VMs. (Must be the same that was used during creation of base image)
---base - specify the base image. By default script assumes existence of base image called "ipa-ready-image.qcow2" in current directory.
---clients - number of client VMs to be created. By default 2.

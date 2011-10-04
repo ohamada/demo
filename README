@@ -1,20 +1,33 @@
 IPA-demo
 
-Script tool for setting up enviroment of virtual machines for demonstration of FreeIPA capabilities.
+Script tool for setting up environment of virtual machines for demonstration of FreeIPA capabilities.
 
 ipa-base-prepare.sh - tool for creating and updating base image that is later used for creating virtual machines
 ipa-demo.sh - tool for creating virtual machines enviroment. Responsible for creating virtual machines and installing freeipa into them.
 
 Scripts were tested on Fedora 15 x86_64. Virtual machines are also Fedora 15 x86_64 systems.
 
-It's supposed that you have installed and running qemu-kvm, python-virtinst, openssh-clients, libguestfs-tools-c. Optionaly you can install virt-manager and/or virt-viewer.
-
+It's supposed that you have installed and running 
 Default directory for storing images is /var/lib/libvirt/images. If you want to use another one, you have to create it before.
 
-Be sure you have enough disk space - at least two "base images" will be used what means about 5 GB at least.
-
 -Create directory and copy all necessary files into it (ipa-base-prepare.sh, ipa-demo.sh, f15-freeipa-base.ks.temp, freeipa-client-install.sh, freeipa-server-install.sh).
+
+!!! It's strongly recommended to set your own fedora installation repo because the default one is extremelly slow.
+
 -Run as root following commands in this order:
 	1) ./ipa-base-prepare.sh --createbase
 	2) ./ipa-base-prepare.sh --installipa
 	3) ./ipa-demo.sh
+
+Those commands will create evironment containing three virtual machines(one with freeipa-server, two with freeipa-client) with freeipa fully configured and ready for use.
+Each virtual machine is configured to use 1 cpu and 1 GB ram.(This environment will be considered as reference for further definition of requirements) We are using Qcow2 image format with dynamically growing size. Each image's size can grow up to 10GB. If you want to install additional packages to any VM, watch your free space.
+
+HW Requirements:
+10GB of disk free space( if you get/download/whatever 'installation ready' base image without need of using ipa-base-prepare, then you need about 7GB of free disk space)
+4 GB ram
+CPU dual-core with virtualization support
+(Note: This configuration allowed us to run all VMs as well as use system in a standard way.)
+
+SW Requirements:
+OS: Fedora 15 x86_64
+Pkgs: libvirt, qemu, qemu-kvm, qemu-img, qemu-system, python-virtinst, openssh-clients, libguestfs-tools-c (Optionaly you can install virt-manager and/or virt-viewer)

@@ -1,16 +1,39 @@
+The following documentation is practical guide to set up MediaWiki to run against freeipa.
+
+The situation is following:
+Server: running freeipa-server and dns. Hostname: master.example.com
+Client: running freeipa-client and MediaWiki, using master.example.com as primary dns. Hostname: client-0.example.com
+
+Install freeipa:
+	get server and client ip addresses (run 'ip -4 addr show eth0' on each one)
+	on each machine add its hostname to /etc/hosts
+   server:
+	echo "#server-ip-address master.example.com master" >> /etc/hosts
+   client:
+	echo "#server-ip-address client-0.example.com client-0" >> /etc/hosts
+
+run on server:
+	ipa-server-install --realm=EXAMPLE.COM --domain=example.com --ds-password=secret123 --master-password=secret123 --admin-password=secret123 --setup-dns --no-forwarders --hostname=master.example.com --ip-address=#server-ip-address -U
+	after succesfull installation get kerberos ticket for admin:
+	kinit admin (then enter admin password: 'secret123')
+	add client into hosts:
+	ipa host-add client-0.example.com --password=secret123 --ip-address=#client-ip-address
+     then on client run:
+	ipa-client-install --server=master.example.com --domain=example.com --hostname=client-0.example.com --password=secret123 --enable-dns-updates -U
+
 1) Install following packages: 
 	httpd mysql mysql-server php php-mysql mod_auth_kerb mod_nss mediawiki
 	it's also supposed that you have installed freeipa-admintools on client which runs mediawiki
 
 Mediawiki installation:
-2) start mysqld and httpd services and make them start on system startup
+2) start mysqld and httpd services and make them start on system start
 	service mysqld start
 	service httpd start
 	chkconfig httpd on
 	chkconfig mysqld on
 3) configure mysql:
 	a) run mysql_secure_installation, set root password
-	b) create databese(wikidb) and user(wikiuser) with privileges to it, set password for wikiuser(aaaa)
+	b) create database(wikidb) and user(wikiuser) with privileges to it, set password for wikiuser(aaaa)
 	c) 	mysql -u root -p
 		create database wikidb;
 		create user wikiuser@localhost identified by "aaaa";
@@ -84,7 +107,7 @@ Now on client with mediawiki:
 
 Now we have configure mediawiki secured by SSL and access to the wiki is secured by kerberos.
 
-Next step is setting up autologin modul for mediawiki that auto logs in any user with valid kerberos ticket.
+Next step is setting up autologin module for mediawiki that auto logs in any user with valid kerberos ticket.
 
 Install the 'Automatic REMOTE_USER Authentication' for mediawiki:
 	download it from here: http://upload.wikimedia.org/ext-dist/Auth_remoteuser-trunk-r85015.tar.gz
@@ -94,12 +117,12 @@ Install the 'Automatic REMOTE_USER Authentication' for mediawiki:
 	Edit /var/www/wiki/LocalSettings.php by adding this lines:
 	require_once('extensions/Auth_remoteuser/Auth_remoteuser.php');
 	$wgAuth = new Auth_remoteuser();
-   Optionaly you can add also this lines
+   Optionally you can add also this lines
 	$wgAuthRemoteuserAuthz = true; /* Your own authorization test */
 	$wgAuthRemoteuserName = $_SERVER["AUTHENTICATE_CN"]; /* User's name */
 	$wgAuthRemoteuserMail = $_SERVER["AUTHENTICATE_MAIL"]; /* User's Mail */
 	$wgAuthRemoteuserNotify = false; /* Do not send mail notifications */
-	$wgAuthRemoteuserDomain = "EXAMPLE.COM"; /* Remove NETBIOSDOMAIN\ from the beginning or @NETBIOSDOMAIN at the end of a IWA username */
+	$wgAuthRemoteuserDomain = "EXAMPLE.COM"; /* Remove EXAMPLE.COM\ from the beginning or @EXAMPLE.COM at the end of a IWA username */
 	/* User's mail domain to append to the user name to make their email address */
 	$wgAuthRemoteuserMailDomain = "example.com";
 	// Don't let anonymous people do things...
