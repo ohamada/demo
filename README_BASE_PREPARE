@@ -1,0 +1,12 @@
+Ipa-base-prepare script
+This script should help you prepare base images to allow you create virtual machines that are ready for FreeIPA installation.
+ ATTENTION: You must have kvm and libguestfs-tools-c installed to run the script correctly.
+usage: ipa-demo.sh [-d dir][-r repoaddr][-c clientnr][-h]
+-h - print help
+-b - specify one base image - if you want to use base images that is older or located in different directory then the archive.
+--archive - specify directory containing base images
+--sshkey - specify private ssh key to be used. It's supposed that public key has the same name with \'.pub\' suffix. The key will be used for connecting to VMs.
+-r - set fedora repository
+--createbase - create base image
+--updatebase - update base image
+--installipa - prepare installation image - take actual base image and install freeipa-server with all dependencies into it
