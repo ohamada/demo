@@ -43,7 +43,7 @@ function isNumber {
 function printHelp {
 	echo "Ipa-demo installation script"
 	echo "This script should help you through setting up freeipa server and client in order to be able to try it out."
-	echo " ATTENTION: You must have qemu-kvm and libguestfs-tools-c installed to run the script correctly."
+	echo " ATTENTION: You must have libvirt, qemu, qemu-kvm, qemu-img, qemu-system, python-virtinst, openssh-clients, libguestfs-tools-c installed to run the script correctly."
 	echo "usage: ipa-demo.sh [--imgdir dir][--sshkey keyfile][-clients clientnr][--base baseimg][-h|--help]"
 	echo "-h,--help - print help"
 	echo "--imgdir - set directory to store images. By default \"$2\"."
@@ -215,6 +215,9 @@ function createDiskImage ()
 # make all commands visible
 #set -x
 
+# working directory
+workingdir=`pwd`
+# file for storing logs
 logfile=ipa-demo.log
 # directory to store images
 imgdir=/var/lib/libvirt/images
@@ -286,7 +289,7 @@ while [ ! -z $1 ]; do
 	case $1 in
 	--base) if [ -z $2 ]
 			then
-				echo "You didn't specified the base image file!"
+				echo "You must specify the base image file!"
 				exit 1
 			fi
 			baseimage=$2
@@ -296,7 +299,7 @@ while [ ! -z $1 ]; do
 	--sshkey) 
 				if [ -z $2 ]
 				then
-					echo "You didn't specified the ssh key!"
+					echo "You must specify the ssh key!"
 					exit 1
 				fi
 				cert_filename=$2
@@ -305,7 +308,7 @@ while [ ! -z $1 ]; do
 	--imgdir) 
 				if [ -z $2 ]
 				then
-					echo "You didn't specified the directory to save images!"
+					echo "You must specify the directory for saving images!"
 					exit 1
 				fi
 				imgdir=$2
@@ -315,7 +318,7 @@ while [ ! -z $1 ]; do
 	--clients) 
 				if [ -z $2 ]
 				then
-					echo "You didn't specified the number of clients!"
+					echo "You must specify the number of clients!"
 					exit 1
 				fi
 				clientnr=$2
@@ -345,10 +348,9 @@ then
 fi
 
 # get full path to image dir
-workdir=`pwd`
 cd $imgdir
 imgdir=`pwd`
-cd $workdir
+cd $workingdir
 
 isNumber $clientnr
 if [ $? -eq 1 ]
@@ -360,6 +362,7 @@ fi
 if [ $clientnr -lt 1 ]
 then
 	echo "Number of clients should be at least 1!" >&2
+	exit 1
 fi
 ###############################################
 ########## END OF ARGUMENTS
@@ -390,7 +393,8 @@ then
 	fi
 else
 	baseimage=`lastCharInPath $baseimage`
-	if [ `checkForWebAddress $baseimage` -eq 1 ]
+	checkForWebAddress $baseimage
+	if [ $? -eq 1 ]
 	then
 		echo "Downloading base image:"
 		wget $baseimage -O $imgdir/$installimage
@@ -424,7 +428,8 @@ then
 		cert_filename="$cert_folder/$cert_name"
 	fi
 else
-	if [ `checkForWebAddress $cert_filename` -eq 1 ]
+	checkForWebAddress $cert_filename
+	if [ $? -eq 1 ]
 	then
 		echo "Downloading ssh key:"
 		wget $cert_filename -O $cert_name
@@ -471,13 +476,13 @@ serverip=`getVmIp $servername`
 
 waitForStart $serverip $cert_filename $logfile
 
-echo "Running installation of freeipa-server on server VM. This could take up to few minutes."
+echo "Running installation of freeipa-server on server VM. This could take few minutes."
 # copy server install script to server
 cat freeipa-server-install.sh | ssh $sshopt -i $cert_filename $user_name@"$serverip" "cat ->>~/freeipa-server-install.sh" &>> $logfile
 
 if [ ! $? -eq 0 ]
 then
-	echo "Can not connect to VM." >&2
+	echo "Unable to connect to VM." >&2
 	exit 1
 fi
 
@@ -536,7 +541,7 @@ while [ $clientcnt -lt $clientnr ]; do
 	
 	if [ ! $? -eq 0 ]
 	then
-		echo "Can not connect to server VM." >&2
+		echo "Unable to connect to the server VM." >&2
 		exit 1
 	fi
 
@@ -546,7 +551,7 @@ while [ $clientcnt -lt $clientnr ]; do
 	
 	if [ ! $? -eq 0 ]
 	then
-		echo "Can not connect to client VM." >&2
+		echo "Unable to connect to the client VM." >&2
 		exit 1
 	fi
 	
@@ -570,4 +575,7 @@ echo "Connection via virt-viewer: virt-viewer $servername"
 echo "Connection via ssh: ssh $sshopt -i $cert_filename root@$serverip"
 echo ""
 echo "Clients:"
+echo "Root password for all clients: rootroot"
+echo "Ipademo user password to be used in kinit: ipademo"
+echo ""
 cat $hostfile

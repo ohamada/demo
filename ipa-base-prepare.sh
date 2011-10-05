@@ -62,13 +62,14 @@ function isNumber {
 function printHelp {
 	echo "Ipa-base-prepare script"
 	echo "This script should help you prepare base images to allow you create virtual machines that are ready for FreeIPA installation."
-	echo " ATTENTION: You must have kvm and libguestfs-tools-c installed to run the script correctly."
+	echo " ATTENTION: You must have libvirt, qemu, qemu-kvm, qemu-img, qemu-system, python-virtinst, openssh-clients, libguestfs-tools-c installed to run the script correctly."
 	echo "usage: ipa-demo.sh [-d dir][-r repoaddr][-c clientnr][-h]"
 	echo "-h - print help"
 	echo "-b - specify one base image  - if you want to use base images that is older or located in different directory then the archive."
 	echo "--archive - specify directory containing base images"
 	echo "--sshkey - specify private ssh key to be used. It's supposed that public key has the same name with \'.pub\' suffix. The key will be used for connecting to VMs."
 	echo "-r - set fedora repository, by default it's: $1"
+	echo "ATTENTION: It's strongly recommended to use nearest repository, because the default one is overloaded. Mirrors list is here: http://mirrors.fedoraproject.org/publiclist/Fedora/15/x86_64/"
 	echo "--createbase - create base image"
 	echo "--updatebase - update base image"
 	echo "--installipa - prepare installation image - take actual base image and install freeipa-server with all dependencies into it"
@@ -143,7 +144,7 @@ function virtInstall {
 
 	if [ ! $? -eq 0 ]
 	then
-		echo "Can not create virtual machine!"
+		echo "Unable to create virtual machine!"
 		exit 1
 	fi
 }
@@ -171,6 +172,7 @@ function prepareKickstart {
 	head -$lines $tempfile > $2
 	
 	# install all ipa dependencies except ds, pki a freeipa pkgs
+	# bind must be added manually since it's not in ipa dependencies
 	echo "yum -y install --enablerepo=updates-testing --nogpgcheck bind bind-dyndb-ldap `getIpaDependency`" >> $2
 	
 #	echo "useradd -K CREATE_HOME=yes $3 -u 1111" >> $2
@@ -274,7 +276,7 @@ function checkDependencies ()
 {
 	if [ -z `rpm -qa | grep libguestfs-tools-c` ]
 	then
-		echo "Package libguestfs-tools-c is missing. You have to install it in order to run the script"
+		echo "Package libguestfs-tools-c is missing. You must install it in order to run the script"
 		exit 1
 	fi
 }
@@ -338,6 +340,10 @@ function lastCharInPath()
 ####################
 #################################################################################
 
+#get full path to working directory, kvm tends to have problem accessing
+# disk images when they are defined by relative path
+workingdir=`pwd`
+
 # make all commands visible
 updatebase=0
 createbase=0
@@ -349,8 +355,8 @@ logfile=ipa-base-prepare.log
 # file name format: f15-ipa-demo-base.date.qcow2
 # file with new image
 imgname="f15-ipa-demo-base"
-workingimage="ipa-working-image.qcow2"
-installimage="ipa-ready-image.qcow2"
+workingimage="$workingdir/ipa-working-image.qcow2"
+installimage="$workingdir/ipa-ready-image.qcow2"
 
 # file with base image
 baseimg=""
@@ -415,7 +421,7 @@ while [ ! -z $1 ]; do
 			;;
 	-b) if [ -z $2 ]
 	    then
-		echo "You didn't specified the base image file!"
+		echo "You must specify base image file!"
 		exit 1
 	    fi
 	    baseimage=$2
@@ -424,7 +430,7 @@ while [ ! -z $1 ]; do
 		
 	--archive) if [ -z $2 ]
 				then
-					echo "You didn't specified the archive directory!"
+					echo "You must specify archive directory!"
 					exit 1
 				fi
 				archive=$2
@@ -434,7 +440,7 @@ while [ ! -z $1 ]; do
 	--sshkey) 
 				if [ -z $2 ]
 				then
-					echo "You didn't specify the ssh key!"
+					echo "You must specify the ssh key!"
 					exit 1
 				fi
 				cert_filename=$2
@@ -444,7 +450,7 @@ while [ ! -z $1 ]; do
 	-r) repo=$2
 		if [ -z $2 ]
 		then
-			echo "You didn't specify the repo!"
+			echo "You must specify the repository!"
 			exit 1
 		fi
 		shift
@@ -466,14 +472,6 @@ while [ ! -z $1 ]; do
 done
 
 # check arguments
-if [ ! -d $imgdir ]
-then
-	echo "Directory for storing images doesn't exist!" >&2
-	exit 1
-fi
-
-imgdir=`lastCharInPath $imgdir`
-
 if [ ! -f $ksserver_temp ]
 then
 	echo "Kickstart file for ipa-server missing!" >&2
@@ -482,7 +480,7 @@ fi
 
 if [ -z $repo ]
 then
-	echo "You have to specify address of Fedora repository!" >&2
+	echo "You must specify address of Fedora repository!" >&2
 	exit 1
 fi
 
@@ -503,7 +501,6 @@ fi
 ###############################################
 
 imgfile=$imgname.`getDate`.qcow2
-workingdir=`pwd`
 
 if [ $createbase -eq 1 ]
 then
@@ -532,7 +529,7 @@ then
 		
 		if [ -d $cert_folder ]
 		then
-			echo "Folder $cert_folder already exists! Please specify another folder to store certificates!" >&2
+			echo "Folder $cert_folder already exists! Please specify another folder for storing ssh keys!" >&2
 			exit 1
 		else 
 			mkdir $cert_folder
@@ -647,7 +644,7 @@ else
 	# if installation of freeipa-server was chosen
 	if [ $installipa -eq 1 ]
 	then
-		newbaseimg=$installimage
+		newbaseimg=$workingdir/$installimage
 		echo "Installing freeipa-server. This can take several minutes."
 		ssh $sshopt -i $cert_filename root@$machineip 'yum install -y --enablerepo=updates-testing freeipa-server' &>> $logfile
 	fi
@@ -662,7 +659,7 @@ else
 	
 	if [ ! $? -eq 0 ]
 	then
-		echo "Saving of base image failed" >&2
+		echo "Unable to save base image!" >&2
 		exit 1
 	fi
 	
@@ -680,7 +677,7 @@ else
 			echo "New base image is saved in `pwd`/$newbaseimg !"
 		fi		
 	else
-		echo "Base image for installation is ready in `pwd`/$newbaseimg !"
+		echo "Base image for installation is ready in $newbaseimg !"
 	fi
 fi
 
