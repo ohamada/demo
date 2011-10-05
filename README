@@ -26,8 +26,8 @@ HW Requirements:
 10GB of disk free space( if you get/download/whatever 'installation ready' base image without need of using ipa-base-prepare, then you need about 7GB of free disk space)
 4 GB ram
 CPU dual-core with virtualization support
-(Note: This configuration allowed us to run all VMs as well as use system in a standard way.)
+(Note: This configuration allowed us to run smoothly all VMs as well as use system)
 
 SW Requirements:
-OS: Fedora 15 x86_64
+OS: Fedora 15 x86_64, RHEL 6.1 x86_64
 Pkgs: libvirt, qemu, qemu-kvm, qemu-img, qemu-system, python-virtinst, openssh-clients, libguestfs-tools-c (Optionaly you can install virt-manager and/or virt-viewer)

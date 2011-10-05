@@ -644,7 +644,7 @@ else
 	# if installation of freeipa-server was chosen
 	if [ $installipa -eq 1 ]
 	then
-		newbaseimg=$workingdir/$installimage
+		newbaseimg=$installimage
 		echo "Installing freeipa-server. This can take several minutes."
 		ssh $sshopt -i $cert_filename root@$machineip 'yum install -y --enablerepo=updates-testing freeipa-server' &>> $logfile
 	fi
