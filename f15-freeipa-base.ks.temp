@@ -7,8 +7,8 @@ keyboard us
 network --bootproto dhcp
 #Root password
 rootpw --plaintext rootroot
-#Add demo user
-user --name=ipademo --password=ipademo --plaintext
+#test user - without it graphical desktop won't start
+user --name=test --password=test --plaintext
 firewall --enabled --ssh
 selinux --permissive
 timezone --utc America/New_York
