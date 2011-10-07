@@ -65,10 +65,10 @@ function printHelp {
 	echo " ATTENTION: You must have libvirt, qemu, qemu-kvm, qemu-img, qemu-system, python-virtinst, openssh-clients, libguestfs-tools-c installed to run the script correctly."
 	echo "usage: ipa-base-prepare.sh [--createbase | --updatebase | --installipa][--sshkey pathtokey][--archive archdir][-r repoaddr][-h | --help]"
 	echo "-h, --help - print help"
-	echo "-b - specify one base image  - if you want to use base images that is older or located in different directory then the archive."
+	echo "--base - specify one base image  - if you want to use base images that is older or located in different directory then the archive."
 	echo "--archive - specify directory containing base images"
 	echo "--sshkey - specify private ssh key to be used. It's supposed that public key has the same name with \'.pub\' suffix. The key will be used for connecting to VMs."
-	echo "-r - set fedora repository, by default it's: $1"
+	echo "--repo - set fedora repository, by default it's: $1"
 	echo "ATTENTION: It's strongly recommended to use nearest repository, because the default one is overloaded. Mirrors list is here: http://mirrors.fedoraproject.org/publiclist/Fedora/15/x86_64/"
 	echo "--createbase - create base image"
 	echo "--updatebase - update base image"
@@ -406,7 +406,7 @@ while [ ! -z $1 ]; do
 			;;
 	--installipa) installipa=1
 			;;
-	-b) if [ -z $2 ]
+	--base) if [ -z $2 ]
 	    then
 		echo "You must specify base image file!"
 		exit 1
@@ -434,7 +434,7 @@ while [ ! -z $1 ]; do
 				shift
 				;;
 
-	-r) repo=$2
+	--repo) repo=$2
 		if [ -z $2 ]
 		then
 			echo "You must specify the repository!"
