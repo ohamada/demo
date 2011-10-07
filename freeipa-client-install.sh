@@ -116,4 +116,6 @@ configeth0 $eth0conf $dns
 service network start
 
 # run the install
-ipa-client-install --server=$serverhostname.$domain --domain=$domain --hostname=$clienthostname.$domain --password=$password --enable-dns-updates -U
+ipa-client-install --server=$serverhostname.$domain --domain=$domain --hostname=$clienthostname.$domain --password=$password --enable-dns-updates --mkhomedir -U
+# need to reboot in order to allow ipademo user using graphical desktop environmnet
+reboot
