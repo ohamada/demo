@@ -478,7 +478,7 @@ waitForStart $serverip $cert_filename $logfile
 
 echo "Running installation of freeipa-server on server VM. This could take few minutes."
 # copy server install script to server
-cat freeipa-server-install.sh | ssh $sshopt -i $cert_filename $user_name@"$serverip" "cat ->>~/freeipa-server-install.sh" &>> $logfile
+cat freeipa-server-install.sh | ssh $sshopt -i $cert_filename root@"$serverip" "cat ->>~/freeipa-server-install.sh" &>> $logfile
 
 if [ ! $? -eq 0 ]
 then
@@ -487,13 +487,13 @@ then
 fi
 
 # install freeipa-server
-ssh $sshopt $user_name@$serverip -i $cert_filename "sudo sh ~/freeipa-server-install.sh -d $domain -c $serverhostname -r $realm -p $password -e $password" &>> $logfile
+ssh $sshopt root@$serverip -i $cert_filename "sudo sh ~/freeipa-server-install.sh -d $domain -c $serverhostname -r $realm -p $password -e $password" &>> $logfile
 
 # remove xml file
 rm -f $servername.xml
 
 # add user ipademo to freeipa
-ssh $sshopt $user_name@$serverip -i $cert_filename "printf \"$user_name\n$user_name\" | sudo ipa user-add $user_name --first=ipa --last=demo --password" &>> $logfile
+ssh $sshopt root@$serverip -i $cert_filename "printf \"$user_name\n$user_name\" | sudo ipa user-add $user_name --first=ipa --last=demo --password" &>> $logfile
 
 echo "Server installation done."
 
@@ -530,14 +530,14 @@ while [ $clientcnt -lt $clientnr ]; do
 	echo "VM name: $clientname" >> $hostfile
 	echo "IP address: $clientip" >> $hostfile
 	echo "Username: $user_name" >> $hostfile
-	echo "User password: $user_name" >> $hostfile
+	echo "User password: $password" >> $hostfile
 	echo "Connection via virt-viewer: virt-viewer $clientname" >> $hostfile
 	echo "Connection via ssh: ssh $sshopt -i $cert_filename $user_name@$clientip" >> $hostfile
 	echo "" >> $hostfile
 
 	echo "Adding host to IPA domain."
 	# add host to IPA
-	ssh $sshopt -i $cert_filename $user_name@"$serverip" "sudo ipa host-add $clienthostname.$domain --ip-address=$clientip --password=$password" &>> $logfile
+	ssh $sshopt -i $cert_filename root@"$serverip" "ipa host-add $clienthostname.$domain --ip-address=$clientip --password=$password" &>> $logfile
 	
 	if [ ! $? -eq 0 ]
 	then
@@ -547,7 +547,7 @@ while [ $clientcnt -lt $clientnr ]; do
 
 	echo "Installing freeipa-client on client's VM"
 	# copy client install script to client and execute it
-	cat $clientsh | ssh $sshopt -i $cert_filename $user_name@"$clientip" "cat ->>~/$clientsh" &>> $logfile
+	cat $clientsh | ssh $sshopt -i $cert_filename root@"$clientip" "cat ->>~/$clientsh" &>> $logfile
 	
 	if [ ! $? -eq 0 ]
 	then
@@ -555,7 +555,22 @@ while [ $clientcnt -lt $clientnr ]; do
 		exit 1
 	fi
 	
-	ssh $sshopt -i $cert_filename $user_name@"$clientip" "sudo sh ~/$clientsh -d $domain -c $clienthostname -s $serverhostname -p $password -n $serverip" &>> $logfile
+	ssh $sshopt -i $cert_filename root@"$clientip" "sh ~/$clientsh -d $domain -c $clienthostname -s $serverhostname -p $password -n $serverip" &>> $logfile
+	
+	# set password for user 'ipademo'
+	if [ $clientcnt -eq 0 ]
+	then
+		# give the machine time to reboot
+		sleep 10
+		# wait until it's ready
+		waitForStart $clientip $cert_filename $logfile
+		# change the user password
+		ssh $sshopt -i $cert_filename root@"$clientip" "printf \"$user_name\n$password\n$password\n\" | kinit $user_name" &>> $logfile
+		if ! $? -eq 0 ]
+		then
+			echo "Unable to set password for user $user_name. You'll have to set it manually by connecting to any client via ssh under user name $user_name. Initial password is $user_name." >&2
+		fi
+	fi
 	
 	clientcnt=$(($clientcnt + 1))
 	rm -f $clientname.xml
