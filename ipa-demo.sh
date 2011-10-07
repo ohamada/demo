@@ -532,7 +532,7 @@ while [ $clientcnt -lt $clientnr ]; do
 	echo "Username: $user_name" >> $hostfile
 	echo "User password: $password" >> $hostfile
 	echo "Connection via virt-viewer: virt-viewer $clientname" >> $hostfile
-	echo "Connection via ssh: ssh $sshopt -i $cert_filename $user_name@$clientip" >> $hostfile
+	echo "Connection via ssh: ssh $sshopt $user_name@$clientip" >> $hostfile
 	echo "" >> $hostfile
 
 	echo "Adding host to IPA domain."
