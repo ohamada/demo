@@ -5,7 +5,7 @@ Script tool for setting up environment of virtual machines for demonstration of 
 ipa-base-prepare.sh - tool for creating and updating base image that is later used for creating virtual machines
 ipa-demo.sh - tool for creating virtual machines enviroment. Responsible for creating virtual machines and installing freeipa into them.
 
-Scripts were tested on Fedora 15 x86_64. Virtual machines are also Fedora 15 x86_64 systems.
+Scripts were tested on Fedora 15 x86_64 and RHEL 6.1 x86_64. Virtual machines are also Fedora 15 x86_64 systems.
 
 It's supposed that you have installed and running 
 Default directory for storing images is /var/lib/libvirt/images. If you want to use another one, you have to create it before.
@@ -21,6 +21,8 @@ Default directory for storing images is /var/lib/libvirt/images. If you want to 
 
 Those commands will create evironment containing three virtual machines(one with freeipa-server, two with freeipa-client) with freeipa fully configured and ready for use.
 Each virtual machine is configured to use 1 cpu and 1 GB ram.(This environment will be considered as reference for further definition of requirements) We are using Qcow2 image format with dynamically growing size. Each image's size can grow up to 10GB. If you want to install additional packages to any VM, watch your free space.
+
+There was problem on one machine with running the scripts in home directory(it denied access to images). It was necessary run the script from different directory('/root' for example).
 
 HW Requirements:
 10GB of disk free space( if you get/download/whatever 'installation ready' base image without need of using ipa-base-prepare, then you need about 7GB of free disk space)
