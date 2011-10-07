@@ -175,18 +175,9 @@ function prepareKickstart {
 	# bind must be added manually since it's not in ipa dependencies
 	echo "yum -y install --enablerepo=updates-testing --nogpgcheck bind bind-dyndb-ldap `getIpaDependency`" >> $2
 	
-#	echo "useradd -K CREATE_HOME=yes $3 -u 1111" >> $2
-#	echo "echo \"$3\" | passwd $3 --stdin" >> $2
 	echo "cd /root/" >> $2
 	echo "mkdir --mode=700 .ssh" >> $2
 	echo "echo \"`cat $4.pub`\">>.ssh/authorized_keys" >> $2
-	echo "chmod 600 .ssh/authorized_keys" >> $2
-
-	echo "cd /home/$3" >> $2
-	echo "mkdir --mode=700 .ssh" >> $2
-	echo "chown $3 .ssh" >> $2
-	echo "echo \"`cat $4.pub`\">>.ssh/authorized_keys" >> $2
-	echo "chown $3 .ssh/authorized_keys" >> $2
 	echo "chmod 600 .ssh/authorized_keys" >> $2
 	
 	echo "" >> $2
@@ -195,14 +186,10 @@ function prepareKickstart {
 	echo "cat /etc/sudoers_old | grep -v requiretty > /etc/sudoers" >> $2
 	echo "chmod 440 /etc/sudoers" >> $2
 	# add user to sudoer list so that he can use sudo without password
-	echo "echo \"User_Alias	IPADEMOUSR=$3\" >> /etc/sudoers" >> $2
-	echo "echo \"IPADEMOUSR       ALL = NOPASSWD: ALL\" >> /etc/sudoers" >> $2
+	echo "echo \"%ipausers       ALL = NOPASSWD: ALL\" >> /etc/sudoers" >> $2
 	# Various authenticaion config changes
 	# Fix SELinux context on the newly created authorized_keys file
 	echo "restorecon /root/.ssh/authorized_keys" >> $2
-	echo "restorecon /home/$3/.ssh/authorized_keys" >> $2
-	# Disable root logging in with password
-	echo "echo \"PermitRootLogin without-password\" >> /etc/ssh/sshd_config" >> $2
 	# close the post section
 	tail -2 $tempfile >> $2
 	
