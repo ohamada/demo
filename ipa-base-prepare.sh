@@ -570,10 +570,10 @@ then
 
 	waitForInst $vmname
 	
-	printf "[5/6] Saving image in archive"
+	printf "\t[5/6] Saving image in archive\n"
 	mv $workingimage $archive/$imgfile
 	
-	printf "[6/6] Cleaning up"
+	printf "\t[6/6] Cleaning up\n"
 	virsh undefine $vmname &>> $logfile
 		
 	cleanUp $ksserver
@@ -673,7 +673,7 @@ else
 	if [ $installipa -eq 1 ]
 	then
 		newbaseimg=$installimage
-		printf "\t[6/9] Installing freeipa-server. This can take several minutes\n"
+		printf "\t\tInstalling freeipa-server. This can take several minutes\n"
 		ssh $sshopt -i $cert_filename root@$machineip 'yum install -y --enablerepo=updates-testing freeipa-server' &>> $logfile
 	fi
 	
