@@ -498,7 +498,7 @@ printf "\t[5/5] Adding 'ipademo' user \n"
 # add user ipademo to freeipa
 ssh $sshopt root@$serverip -i $cert_filename "printf \"$user_name\n$user_name\" | sudo ipa user-add $user_name --first=ipa --last=demo --password" &>> $logfile
 
-printf "\tServer installation done\n"
+printf "Server installation done\n"
 
 # CLIENTS INSTALLATION
 
