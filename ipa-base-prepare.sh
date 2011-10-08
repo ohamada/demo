@@ -321,6 +321,21 @@ function lastCharInPath()
 	fi
 }
 
+# function for checking whether the provided path is a web address
+checkForWebAddress ()
+{
+	http=`echo $1 | grep "^http[s]\{0,1\}://[a-zA-Z0-9]\{1,\}"`
+	ftp=`echo $1 | grep \"^ftp://[a-zA-Z0-9]\{1,\}\"`
+	
+	if [ -z "$http" -a -z "$ftp" ]
+	then
+		return 0
+	else
+		return 1
+	fi
+	return 0
+}
+
 #################################################################################
 ####################
 ########		END OF FUNCTIONS DEFINITION
@@ -387,6 +402,12 @@ repo=http://download.fedoraproject.org/pub/fedora/linux/releases/$osver/Fedora/$
 archive=archive
 
 ############
+# Add header to log file for current task
+echo "" &>> $logfile
+echo "NEW RECORD, date:`getDate`" &>> $logfile
+echo "" &>> $logfile
+
+echo "Welcome to IPA-BASE-PREPARE script for automatic creating and updating of base images."
 
 # check whether required packages are installed
 checkDependencies
@@ -491,12 +512,14 @@ imgfile=$imgname.`getDate`.qcow2
 
 if [ $createbase -eq 1 ]
 then
+	echo "Creating base image:"
 	if [ -z $imgfile ]
 	then
 		echo "Image file wasn't specified" >&2
 		exit 1
 	fi
 
+	printf "\t[1/6] Creating/checking directory for saving base images\n"
 	# create folder for achivation of base images and set it as readable for everyone
 	if [ -d $archive ]
 	then
@@ -510,7 +533,8 @@ then
 	
 	# create new SSH key or check existence of the specified one
 	if [ -z "$cert_filename" ]
-	then	
+	then
+		printf "\t[2/6] Creating SSH key\n"
 		# create folder for saving certificate
 		cert_folder=`lastCharInPath $cert_folder`
 		
@@ -530,6 +554,7 @@ then
 		# set folder with all containg certificates as readable
 		chmod -R 600 $cert_folder
 	else
+		printf "\t[2/6] Loading SSH key\n"
 		if [ ! -f $cert_filename ]
 		then
 			echo "Specified SSH key doesn't exist!" >&2
@@ -537,20 +562,22 @@ then
 		fi
 	fi
 
+	printf "\t[3/6] Preparing kickstart file\n"
 	prepareKickstart $ksserver_temp $ksserver $user_name $cert_filename
 
-	echo "Creating VM and installing system. This action can take several minutes!"
+	printf "\t[4/6] Creating virtual machine. This action can take several minutes!\n"
 	virtInstall $workingimage $vmname $ksserver $repo $disksize $logfile
 
 	waitForInst $vmname
 	
-	echo "Saving image in archive!"
+	printf "[5/6] Saving image in archive"
 	mv $workingimage $archive/$imgfile
-	echo "New base image is saved in $archive/$imgfile !"
 	
+	printf "[6/6] Cleaning up"
 	virsh undefine $vmname &>> $logfile
 		
 	cleanUp $ksserver
+	echo "Finished! New base image is saved in $archive/$imgfile !"
 else
 	#
 	# Update of base image or installation of freeipa-server
@@ -563,18 +590,30 @@ else
 	# create folder for saving certificate
 	cert_folder=`lastCharInPath $cert_folder`
 	
+	printf "[1/9] Loading SSH key\n"
 	if [ -z "$cert_filename" ]
 	then		
 		cert_filename=$cert_folder/$cert_name
+	else
+		checkForWebAddress $cert_filename
+		if [ $? -eq 1 ]
+		then
+			wget $cert_filename -O $workingdir/$cert_name
+			if [ ! $? -eq 0 ]
+			then
+				echo "Certificate $cert_filename can't be downloaded!" >&2
+			fi
+			cert_filename=$workingdir/$cert_name
+		fi
+		# check existence of SSH key
+		if [ ! -f $cert_filename ]
+		then
+			echo "Certificate $cert_filename doesn't exist!" >&2
+			exit 1
+		fi
 	fi
 	
-	# check existence of SSH key
-	if [ ! -f $cert_filename ]
-	then
-		echo "Certificate $cert_filename doesn't exist!" >&2
-		exit 1
-	fi
-	
+	printf "\t[2/9] Preparing working image\n"
 	# prepare image for ipa-server
 	if [ -z $baseimage ]
 	then
@@ -601,9 +640,11 @@ else
 		exit 1
 	fi
 	
+	printf "\t[3/9] Preparing definition file for creating virtual machine\n"
 	# prepare xml definition of VM that will be used to run system update
 	virtImageXml $vmname.xml $vmname $workingimage $vcpu $vram $arch
 	
+	printf "\t[4/9] Creating virtual machine\n"
 	# start VM defined by XML file
 	virt-image $vmname.xml &>> $logfile
 	
@@ -614,13 +655,13 @@ else
 	fi
 	
 	# get the machine ip
-	echo "Starting VM."
+	printf "\t[5/9] Starting virtual machine\n"
 	machineip=`getVmIp $vmname`
 	
 	waitForStart $machineip $cert_filename $logfile
 	
 	# update system
-	echo "Running system update"
+	printf "\t[6/9] Updating virtual machine's system\n"
 	ssh $sshopt -i $cert_filename root@$machineip 'yum update -y --enablerepo=updates-testing' &>> $logfile
 	if [ ! $? -eq 0 ]
 	then
@@ -632,16 +673,16 @@ else
 	if [ $installipa -eq 1 ]
 	then
 		newbaseimg=$installimage
-		echo "Installing freeipa-server. This can take several minutes."
+		printf "\t[6/9] Installing freeipa-server. This can take several minutes\n"
 		ssh $sshopt -i $cert_filename root@$machineip 'yum install -y --enablerepo=updates-testing freeipa-server' &>> $logfile
 	fi
 	
-	echo "Shuting down the VM"
+	printf "\t[7/9] Shuting down the VM\n"
 	ssh $sshopt -i $cert_filename root@$machineip 'shutdown' &>> $logfile
 	
 	waitForEnd $vmname
 	
-	echo "Saving new base image!"
+	printf "\t[8/9] Saving new base image\n"
 	qemu-img convert "$workingimage" -O qcow2 $newbaseimg &>> $logfile
 	
 	if [ ! $? -eq 0 ]
@@ -650,6 +691,7 @@ else
 		exit 1
 	fi
 	
+	printf "\t[9/9] Cleaning up\n"
 	# clean VM used for preparing the machine and also temporary image
 	virsh undefine $vmname &>> $logfile
 	rm -f $workingimage $vmname.xml
@@ -659,12 +701,12 @@ else
 		if [ -z $baseimage ]
 		then
 			mv $newbaseimg $archive/$newbaseimg
-			echo "New base image is saved in $archive/$newbaseimg !"
+			echo "Finished: New base image is saved in $archive/$newbaseimg"
 		else
-			echo "New base image is saved in `pwd`/$newbaseimg !"
+			echo "Finished: New base image is saved in `pwd`/$newbaseimg"
 		fi		
 	else
-		echo "Base image for installation is ready in $newbaseimg !"
+		echo "Finished: Base image for installation is ready in $newbaseimg"
 	fi
 fi
 
