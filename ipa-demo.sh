@@ -509,10 +509,10 @@ while [ $clientcnt -lt $clientnr ]; do
 	clientname="f15-ipa-client-$clientcnt"
 	clienthostname="client-$clientcnt"
 	
-	printf "\t[1/] Creating disk image for client VM\n"
+	printf "\t[1/5] Creating disk image for client VM\n"
 	# create disk image for new VM
 	createDiskImage $baseimage "$imgdir/$clientname.qcow2" $logfile
-	printf "\t[2/] Creating definition file for server VM\n"
+	printf "\t[2/5] Creating definition file for server VM\n"
 	# prepare xml definition of VM that will be used to run system update
 	virtImageXml $clientname "$imgdir/$clientname.qcow2" $vcpu $vram $arch
 	printf "\t[3/5] Starting server VM\n"
@@ -538,7 +538,7 @@ while [ $clientcnt -lt $clientnr ]; do
 	echo "Connection via ssh: ssh $sshopt $user_name@$clientip" >> $hostfile
 	echo "" >> $hostfile
 
-	printf "\t[4/] Adding machine to IPA domain\n"
+	printf "\t[4/5] Adding machine to IPA domain\n"
 	# add host to IPA
 	ssh $sshopt -i $cert_filename root@"$serverip" "ipa host-add $clienthostname.$domain --ip-address=$clientip --password=$password" &>> $logfile
 	
@@ -548,7 +548,7 @@ while [ $clientcnt -lt $clientnr ]; do
 		exit 1
 	fi
 
-	printf "\t[5/] Installing freeipa-client on client's VM\n"
+	printf "\t[5/5] Installing freeipa-client on client's VM\n"
 	# copy client install script to client and execute it
 	cat $clientsh | ssh $sshopt -i $cert_filename root@"$clientip" "cat ->>~/$clientsh" &>> $logfile
 	
