@@ -499,9 +499,10 @@ then
 	exit 1
 fi
 
-if [ $setrepo -eq 0 ]
+if [ $setrepo -eq 0 -a $createbase -eq 1 ]
 then
-	echo "Please choose the nearest repository to your location from mirror list: http://mirrors.fedoraproject.org/publiclist/Fedora/15/x86_64/ (the address must point to '.../x86_64/os' directory)" >&2
+	echo "Please choose the nearest repository to your location from mirror list: http://mirrors.fedoraproject.org/publiclist/Fedora/15/x86_64/" >&2
+	echo "The address must point to '.../x86_64/os' directory, for example: 'http://dl.fedoraproject.org/pub/fedora/linux/releases/15/Fedora/x86_64/os/'" >&2
 	exit 1
 fi
 
@@ -618,12 +619,12 @@ else
 			fi
 			cert_filename=$workingdir/$cert_name
 		fi
-		# check existence of SSH key
-		if [ ! -f $cert_filename ]
-		then
-			echo "Certificate $cert_filename doesn't exist!" >&2
-			exit 1
-		fi
+	fi
+	# check existence of SSH key
+	if [ ! -f $cert_filename ]
+	then
+		echo "Certificate $cert_filename doesn't exist!" >&2
+		exit 1
 	fi
 	
 	printf "\t[2/9] Preparing working image\n"
