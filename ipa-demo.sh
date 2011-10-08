@@ -377,11 +377,12 @@ checkDependencies
 ######### FIND BASEIMAGE AND CERTIFICATE
 ###############################################
 
+printf "Loading base image\n"
 if [ -z "$baseimage" ]
 then
 	if [ -f $installimage ]
 	then
-		echo "Moving base image to the same directory that should contain VM's images: $imgdir"
+		printf "\t\tMoving base image to the same directory that should contain VM's images: $imgdir\n"
 		mv $installimage $imgdir/$installimage
 		baseimage=$imgdir/$installimage
 	elif [ -f "$imgdir/$installimage" ]
@@ -396,7 +397,7 @@ else
 	checkForWebAddress $baseimage
 	if [ $? -eq 1 ]
 	then
-		echo "Downloading base image:"
+		printf "\t\tDownloading base image:\n"
 		wget $baseimage -O $imgdir/$installimage
 		if [ ! $? -eq 0 ]
 		then
@@ -410,13 +411,14 @@ else
 			echo "Can't find base image!" >&2
 			exit 1
 		else
-			echo "Moving base image to the same directory that should contain VM's images: $imgdir"
+			printf "\t\tMoving base image to the same directory that should contain VM's images: $imgdir\n"
 			mv $baseimage $imgdir/$installimage
 			baseimage=$imgdir/$installimage
 		fi
 	fi
 fi
 
+printf "Loading SSH key\n"
 # find certificate
 if [ -z "$cert_filename" ]
 then
@@ -431,7 +433,7 @@ else
 	checkForWebAddress $cert_filename
 	if [ $? -eq 1 ]
 	then
-		echo "Downloading ssh key:"
+		printf "\t\tDownloading ssh key:"
 		wget $cert_filename -O $cert_name
 		if [ ! $? -eq 0 ]
 		then
@@ -454,13 +456,14 @@ fi
 #########
 ###############################################
 
-echo "Creating disk image for server VM"
+printf "Creating server virtual machine\n"
+printf "\t[1/5] Creating disk image for server VM\n"
 # create disk image for new VM
 createDiskImage $baseimage "$imgdir/$servername.qcow2" $logfile
-
+printf "\t[2/5] Creating definition file for server VM\n"
 # prepare xml definition of VM that will be used to run system update
 virtImageXml $servername "$imgdir/$servername.qcow2" $vcpu $vram $arch
-
+printf "\t[3/5] Starting server VM\n"
 # start VM defined by XML file
 virt-image $servername.xml &>> $logfile
 
@@ -471,12 +474,11 @@ then
 fi
 
 # get server ip
-echo "Starting the newly created VM."
 serverip=`getVmIp $servername`
 
 waitForStart $serverip $cert_filename $logfile
 
-echo "Running installation of freeipa-server on server VM. This could take few minutes."
+printf "\t[4/5] Installing freeipa-server on server VM. This could take few minutes\n"
 # copy server install script to server
 cat freeipa-server-install.sh | ssh $sshopt -i $cert_filename root@"$serverip" "cat ->>~/freeipa-server-install.sh" &>> $logfile
 
@@ -492,10 +494,11 @@ ssh $sshopt root@$serverip -i $cert_filename "sudo sh ~/freeipa-server-install.s
 # remove xml file
 rm -f $servername.xml
 
+printf "\t[5/5] Adding 'ipademo' user \n"
 # add user ipademo to freeipa
 ssh $sshopt root@$serverip -i $cert_filename "printf \"$user_name\n$user_name\" | sudo ipa user-add $user_name --first=ipa --last=demo --password" &>> $logfile
 
-echo "Server installation done."
+printf "\tServer installation done\n"
 
 # CLIENTS INSTALLATION
 
@@ -506,12 +509,13 @@ while [ $clientcnt -lt $clientnr ]; do
 	clientname="f15-ipa-client-$clientcnt"
 	clienthostname="client-$clientcnt"
 	
+	printf "\t[1/] Creating disk image for client VM\n"
 	# create disk image for new VM
 	createDiskImage $baseimage "$imgdir/$clientname.qcow2" $logfile
-
+	printf "\t[2/] Creating definition file for server VM\n"
 	# prepare xml definition of VM that will be used to run system update
 	virtImageXml $clientname "$imgdir/$clientname.qcow2" $vcpu $vram $arch
-
+	printf "\t[3/5] Starting server VM\n"
 	# start VM defined by XML file
 	virt-image $clientname.xml &>> $logfile
 
@@ -522,7 +526,6 @@ while [ $clientcnt -lt $clientnr ]; do
 	fi
 
 	# get server ip
-	echo "Starting the newly created VM."
 	clientip=`getVmIp $clientname`
 
 	waitForStart $clientip $cert_filename $logfile
@@ -535,7 +538,7 @@ while [ $clientcnt -lt $clientnr ]; do
 	echo "Connection via ssh: ssh $sshopt $user_name@$clientip" >> $hostfile
 	echo "" >> $hostfile
 
-	echo "Adding host to IPA domain."
+	printf "\t[4/] Adding machine to IPA domain\n"
 	# add host to IPA
 	ssh $sshopt -i $cert_filename root@"$serverip" "ipa host-add $clienthostname.$domain --ip-address=$clientip --password=$password" &>> $logfile
 	
@@ -545,7 +548,7 @@ while [ $clientcnt -lt $clientnr ]; do
 		exit 1
 	fi
 
-	echo "Installing freeipa-client on client's VM"
+	printf "\t[5/] Installing freeipa-client on client's VM\n"
 	# copy client install script to client and execute it
 	cat $clientsh | ssh $sshopt -i $cert_filename root@"$clientip" "cat ->>~/$clientsh" &>> $logfile
 	
@@ -560,6 +563,7 @@ while [ $clientcnt -lt $clientnr ]; do
 	# set password for user 'ipademo'
 	if [ $clientcnt -eq 0 ]
 	then
+		printf "\t\tSetting password for user 'ipademo'\n"
 		# give the machine time to reboot
 		sleep 10
 		# wait until it's ready
@@ -572,9 +576,9 @@ while [ $clientcnt -lt $clientnr ]; do
 		fi
 	fi
 	
+	echo "Client-$clientcnt installation done."
 	clientcnt=$(($clientcnt + 1))
 	rm -f $clientname.xml
-	echo "Client installation done."
 # end while
 done
 
