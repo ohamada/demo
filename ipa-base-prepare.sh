@@ -590,7 +590,7 @@ else
 	# create folder for saving certificate
 	cert_folder=`lastCharInPath $cert_folder`
 	
-	printf "[1/9] Loading SSH key\n"
+	printf "\t[1/9] Loading SSH key\n"
 	if [ -z "$cert_filename" ]
 	then		
 		cert_filename=$cert_folder/$cert_name
