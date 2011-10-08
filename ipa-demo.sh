@@ -382,7 +382,7 @@ if [ -z "$baseimage" ]
 then
 	if [ -f $installimage ]
 	then
-		printf "\t\tMoving base image to the same directory that should contain VM's images: $imgdir\n"
+		printf "\tMoving base image to the same directory that should contain VM's images: $imgdir\n"
 		mv $installimage $imgdir/$installimage
 		baseimage=$imgdir/$installimage
 	elif [ -f "$imgdir/$installimage" ]
@@ -397,7 +397,7 @@ else
 	checkForWebAddress $baseimage
 	if [ $? -eq 1 ]
 	then
-		printf "\t\tDownloading base image:\n"
+		printf "\tDownloading base image:\n"
 		wget $baseimage -O $imgdir/$installimage
 		if [ ! $? -eq 0 ]
 		then
@@ -411,7 +411,7 @@ else
 			echo "Can't find base image!" >&2
 			exit 1
 		else
-			printf "\t\tMoving base image to the same directory that should contain VM's images: $imgdir\n"
+			printf "\tMoving base image to the same directory that should contain VM's images: $imgdir\n"
 			mv $baseimage $imgdir/$installimage
 			baseimage=$imgdir/$installimage
 		fi
@@ -570,7 +570,7 @@ while [ $clientcnt -lt $clientnr ]; do
 		waitForStart $clientip $cert_filename $logfile
 		# change the user password
 		ssh $sshopt -i $cert_filename root@"$clientip" "printf \"$user_name\n$password\n$password\n\" | kinit $user_name" &>> $logfile
-		if ! $? -eq 0 ]
+		if [ ! $? -eq 0 ]
 		then
 			echo "Unable to set password for user $user_name. You'll have to set it manually by connecting to any client via ssh under user name $user_name. Initial password is $user_name." >&2
 		fi
