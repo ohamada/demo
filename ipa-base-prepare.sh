@@ -62,7 +62,7 @@ function isNumber {
 function printHelp {
 	echo "Ipa-base-prepare script"
 	echo "This script should help you prepare base images to allow you create virtual machines that are ready for FreeIPA installation."
-	echo " ATTENTION: You must have libvirt, qemu, qemu-kvm, qemu-img, qemu-system, python-virtinst, openssh-clients, libguestfs-tools-c installed to run the script correctly."
+	echo " ATTENTION: You must have libvirt, qemu, qemu-kvm, qemu-img, qemu-system, python-virtinst, openssh-clients installed to run the script correctly."
 	echo "usage: ipa-base-prepare.sh [--createbase | --updatebase | --installipa][--sshkey pathtokey][--archive archdir][-r repoaddr][-h | --help]"
 	echo "-h, --help - print help"
 	echo "--base - specify one base image  - if you want to use base images that is older or located in different directory then the archive."
@@ -264,16 +264,6 @@ function checkRoot ()
     fi
 }
 
-# function to check wheter neccessary packages are installed and install them if they're missing
-function checkDependencies ()
-{
-	if [ -z `rpm -qa | grep libguestfs-tools-c` ]
-	then
-		echo "Package libguestfs-tools-c is missing. You must install it in order to run the script"
-		exit 1
-	fi
-}
-
 # function for cleaning up messy files
 function cleanUp ()
 {
@@ -417,8 +407,6 @@ echo "" &>> $logfile
 
 echo "Welcome to IPA-BASE-PREPARE script for automatic creating and updating of base images."
 
-# check whether required packages are installed
-checkDependencies
 # Check whether user is root
 checkRoot
 

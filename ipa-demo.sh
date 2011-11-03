@@ -43,7 +43,7 @@ function isNumber {
 function printHelp {
 	echo "Ipa-demo installation script"
 	echo "This script should help you through setting up freeipa server and client in order to be able to try it out."
-	echo " ATTENTION: You must have libvirt, qemu, qemu-kvm, qemu-img, qemu-system, python-virtinst, openssh-clients, libguestfs-tools-c installed to run the script correctly."
+	echo " ATTENTION: You must have libvirt, qemu, qemu-kvm, qemu-img, qemu-system, python-virtinst, openssh-clients installed to run the script correctly."
 	echo "usage: ipa-demo.sh [--imgdir dir][--sshkey keyfile][-clients clientnr][--base baseimg][-h|--help]"
 	echo "-h,--help - print help"
 	echo "--imgdir - set directory to store images. By default \"$2\"."
@@ -101,15 +101,6 @@ function virtImageXml ()
 	printf "</image>\n"
 	) > $output
 	
-}
-
-# function to check wheter neccessary packages are installed and install them if they're missing
-function checkDependencies ()
-{
-	if [ -z `rpm -qa | grep libguestfs-tools-c` ]
-	then
-		yum -y install "libguestfs-tools-c"
-	fi
 }
 
 # function for cleaning up messy files
@@ -386,8 +377,6 @@ fi
 
 # check whether user is root
 checkRoot
-# check whether required packages are installed
-checkDependencies
 
 ###############################################
 ######### FIND BASEIMAGE AND CERTIFICATE
