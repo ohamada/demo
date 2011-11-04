@@ -186,7 +186,7 @@ function cleanVMs ()
 	
 	for i in `virsh list | grep $CLIENTBASENAME`; do
 		tmp=`echo $i | awk '{print $2}'`
-		if [ "running" == `echo $i | awk '{print $3}'` ]
+		if [ "running" == "`echo $i | awk '{print $3}'`" ]
 		then
 			virsh destroy $tmp &>> $LOGFILE
 		fi
@@ -547,7 +547,7 @@ fi
 
 printf "\t[5/5] Adding '$USERNAME' user \n"
 # add user ipademo to freeipa
-ssh $SSHOPT root@$SERVERIP -i $SSHKEY_FILENAME "printf \"$USERNAME\n$USERNAME\" | sudo ipa user-add $USERNAME --first=ipa --last=demo --PASSWORD" &>> $LOGFILE
+ssh $SSHOPT root@$SERVERIP -i $SSHKEY_FILENAME "printf \"$USERNAME\n$USERNAME\" | sudo ipa user-add $USERNAME --first=ipa --last=demo --password" &>> $LOGFILE
 
 if [ ! $? -eq 0 ]
 then
@@ -594,14 +594,14 @@ while [ $CLIENTCNT -lt $CLIENTNR ]; do
 	echo "VM name: $CLIENTNAME" >> $HOSTFILE
 	echo "IP address: $CLIENTIP" >> $HOSTFILE
 	echo "Username: $USERNAME" >> $HOSTFILE
-	echo "User PASSWORD: $PASSWORD" >> $HOSTFILE
+	echo "User password: $PASSWORD" >> $HOSTFILE
 	echo "Connection via virt-viewer: virt-viewer $CLIENTNAME" >> $HOSTFILE
 	echo "Connection via ssh: ssh $SSHOPT $USERNAME@$CLIENTIP" >> $HOSTFILE
 	echo "" >> $HOSTFILE
 
 	printf "\t[4/5] Adding machine to IPA DOMAIN\n"
 	# add host to IPA
-	ssh $SSHOPT -i $SSHKEY_FILENAME root@"$SERVERIP" "ipa host-add $CLIENTHOSTNAME.$DOMAIN --ip-address=$CLIENTIP --PASSWORD=$PASSWORD" &>> $LOGFILE
+	ssh $SSHOPT -i $SSHKEY_FILENAME root@"$SERVERIP" "ipa host-add $CLIENTHOSTNAME.$DOMAIN --ip-address=$CLIENTIP --password=$PASSWORD" &>> $LOGFILE
 	
 	if [ ! $? -eq 0 ]
 	then
@@ -626,7 +626,7 @@ while [ $CLIENTCNT -lt $CLIENTNR ]; do
 	# set PASSWORD for user 'ipademo'
 	if [ $CLIENTCNT -eq 0 ]
 	then
-		printf "\t\tSetting PASSWORD for user 'ipademo'\n"
+		printf "\t\tSetting password for user 'ipademo'\n"
 		# give the machine time to reboot
 		sleep 10
 		# wait until it's ready
@@ -635,7 +635,7 @@ while [ $CLIENTCNT -lt $CLIENTNR ]; do
 		ssh $SSHOPT -i $SSHKEY_FILENAME root@"$CLIENTIP" "printf \"$USERNAME\n$PASSWORD\n$PASSWORD\n\" | kinit $USERNAME" &>> $LOGFILE
 		if [ ! $? -eq 0 ]
 		then
-			echo "Unable to set PASSWORD for user $USERNAME. You'll have to set it manually by connecting to any client via ssh under user name $USERNAME. Initial PASSWORD is $USERNAME." >&2
+			echo "Unable to set password for user $USERNAME. You'll have to set it manually by connecting to any client via ssh under user name $USERNAME. Initial PASSWORD is $USERNAME." >&2
 		fi
 	fi
 	
@@ -651,12 +651,12 @@ echo "Following machines should be running now with freeipa installed:"
 echo "Server:"
 echo "VM name:$SERVERNAME"
 echo "IP address: $SERVERIP"
-echo "root PASSWORD: rootroot"
+echo "root password: rootroot"
 echo "Connection via virt-viewer: virt-viewer $SERVERNAME"
 echo "Connection via ssh: ssh $SSHOPT -i $SSHKEY_FILENAME root@$SERVERIP"
 echo ""
 echo "Clients:"
 echo "Root PASSWORD for all clients: rootroot"
-echo "Ipademo user PASSWORD to be used in kinit: ipademo"
+echo "Ipademo user password to be used in kinit: ipademo"
 echo ""
 cat $HOSTFILE
