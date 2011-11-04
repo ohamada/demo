@@ -9,8 +9,6 @@
 # working directory
 WORKINGDIR=`pwd`
 DATADIR=$WORKINGDIR/data
-# file for storing logs
-LOGFILE=ipa-demo-`getDate`.log
 # directory to store images
 IMGDIR=/var/lib/libvirt/images
 
@@ -105,7 +103,7 @@ function printHelp {
 	echo " ATTENTION: You must have libvirt, qemu, qemu-kvm, qemu-img, qemu-system, python-virtinst, openssh-clients installed to run the script correctly."
 	echo "usage: ipa-demo.sh [--IMGDIR dir][--sshkey keyfile][-clients CLIENTNR][--base BASEIMAGE][-h|--help]"
 	echo "-h,--help - print help"
-	echo "--IMGDIR - set directory to store images. By default \"$2\"."
+	echo "--imgdir - set directory to store images. By default \"$2\"."
 	echo "--sshkey - specify sshkey for connecting to the VMs. (Must be the same that was used during creation of base image."
 	echo "--base - specify the base image. By default script assumes existence of base image called \"$1\" in current directory."
 	echo "--clients - number of client VMs to be created. By default $3."
@@ -115,12 +113,13 @@ function printHelp {
 # function to prepare xml file for virt-image to rerun
 # $1 - vm name
 # $2 - relative path to disk image
-# $3 -virtual cpu's number
+# $3 - virtual cpu's number
 # $4 - memory
 # $5 - architecture
 function virtImageXml ()
 {
-	diskformat=`qemu-img info $2 | grep "file format" | awk '{print $3}'`
+	#diskformat=`qemu-img info $2 | grep "file format" | awk '{print $3}'`
+	diskformat=qcow2
 	output=$1.xml
 	
 	(
@@ -295,6 +294,9 @@ if [ -f $HOSTFILE ]
 then
 	rm -f $HOSTFILE
 fi
+
+# file for storing logs
+LOGFILE=ipa-demo-`getDate`.log
 
 # Add header to log file for current task
 echo "" &>> $LOGFILE

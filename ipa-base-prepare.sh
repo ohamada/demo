@@ -57,7 +57,7 @@ OSVERSION=15
 # disk size
 DISKSIZE=10
 
-# fedora OSREPOSITORYsitory
+# fedora repository
 OSREPOSITORY=http://download.fedoraproject.org/pub/fedora/linux/releases/$OSVERSION/Fedora/$ARCH/os
 #OSREPOSITORY=http://download.englab.brq.redhat.com/pub/fedora/linux/releases/$OSVERSION/Fedora/$ARCH/os
 
@@ -123,21 +123,24 @@ function isNumber {
 }
 
 # function that prints help
-# $1 - OSREPOSITORYsitory address
+# $1 - repository address
 function printHelp {
 	echo "Ipa-base-prepare script"
 	echo "This script should help you prepare base images to allow you create virtual machines that are ready for FreeIPA installation."
-	echo " ATTENTION: You must have libvirt, qemu, qemu-kvm, qemu-img, qemu-system, python-virtinst, openssh-clients installed to run the script correctly."
-	echo "usage: ipa-base-prepare.sh [--CREATEBASE | --UPDATEBASE | --INSTALLIPA][--sshkey pathtokey][--ARCHIVE ARCHdir][-r OSREPOSITORYaddr][-h | --help]"
+	echo "ATTENTION: You must have libvirt, qemu, qemu-kvm, qemu-img, qemu-system, python-virtinst, openssh-clients installed to run the script correctly."
+	echo "usage: ipa-base-prepare.sh [--createbase | --updatebase | --installipa][--repo repoaddr][--sshkey pathtokey][--archive archdir][-h | --help]"
+	echo "Mandatory arguments:"
+	echo "--repo - set fedora repository, by default it's: $1"
+	echo "ATTENTION: You must use nearest repository, because the default one is overloaded. Mirrors list is here: http://mirrors.fedoraproject.org/publiclist/Fedora/15/x86_64/"
+	echo "--createbase - create base image"
+	echo "--updatebase - update base image"
+	echo "--installipa - prepare installation image - take actual base image and install freeipa-server with all dependencies into it"
+	echo ""
+	echo "Optional arguments:"
 	echo "-h, --help - print help"
-	echo "--base - specify one base image  - if you want to use base images that is older or located in different directory then the ARCHIVE."
-	echo "--ARCHIVE - specify directory containing base images"
+	echo "--base - specify one base image  - if you want to use base images that is older or located in different directory then the archive."
+	echo "--archive - specify directory containing base images"
 	echo "--sshkey - specify private ssh key to be used. It's supposed that public key has the same name with \'.pub\' suffix. The key will be used for connecting to VMs."
-	echo "--OSREPOSITORY - set fedora OSREPOSITORYsitory, by default it's: $1"
-	echo "ATTENTION: You must use nearest OSREPOSITORYsitory, because the default one is overloaded. Mirrors list is here: http://mirrors.fedoraproject.org/publiclist/Fedora/15/x86_64/"
-	echo "--CREATEBASE - create base image"
-	echo "--UPDATEBASE - update base image"
-	echo "--INSTALLIPA - prepare installation image - take actual base image and install freeipa-server with all dependencies into it"
 }
 
 # function to get PID - get PID of process which handles virtual machine installation
@@ -479,7 +482,7 @@ while [ ! -z $1 ]; do
 	--repo) OSREPOSITORY=$2
 		if [ -z $2 ]
 		then
-			echo "You must specify the OSREPOSITORYsitory!"
+			echo "You must specify the repository!"
 			exit 1
 		fi
 		SETREPO=1
@@ -510,13 +513,13 @@ fi
 
 if [ -z $OSREPOSITORY ]
 then
-	echo "You must specify address of Fedora OSREPOSITORYsitory!" >&2
+	echo "You must specify address of Fedora repository!" >&2
 	exit 1
 fi
 
 if [ $SETREPO -eq 0 -a $CREATEBASE -eq 1 ]
 then
-	echo "Please choose the nearest OSREPOSITORYsitory to your location from mirror list: http://mirrors.fedoraproject.org/publiclist/Fedora/15/x86_64/" >&2
+	echo "Please choose the nearest repository to your location from mirror list: http://mirrors.fedoraproject.org/publiclist/Fedora/15/x86_64/" >&2
 	echo "The address must point to '.../x86_64/os' directory, for example: 'http://dl.fedoraproject.org/pub/fedora/linux/releases/15/Fedora/x86_64/os/'" >&2
 	exit 1
 fi
@@ -572,7 +575,7 @@ then
 		
 		if [ -d $SSHKEY_FOLDER ]
 		then
-			echo "Folder $SSHKEY_FOLDER already exists! Please specify another folder for storing ssh keys!" >&2
+			echo "Folder $SSHKEY_FOLDER already exists! Please specify another folder for storing SSH keys!" >&2
 			exit 1
 		else 
 			mkdir $SSHKEY_FOLDER
