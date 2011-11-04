@@ -12,10 +12,11 @@ Default directory for storing images is /var/lib/libvirt/images. If you want to 
 
 -Create directory and copy all necessary files into it (ipa-base-prepare.sh, ipa-demo.sh, f15-freeipa-base.ks.temp, freeipa-client-install.sh, freeipa-server-install.sh).
 
-!!! It's strongly recommended to set your own fedora installation repo because the default one is extremelly slow.
+!!! It's strongly recommended to set your own fedora installation repository because the default one is extremelly slow. Mirrors list is here: http://mirrors.fedoraproject.org/publiclist/Fedora/15/x86_64/"
+!!! Just remember that the selected repository address must end with .../x86_64/os - for example http://dl.fedoraproject.org/pub/fedora/linux/releases/15/Fedora/x86_64/os/
 
 -Run as root following commands in this order:
-	1) ./ipa-base-prepare.sh --createbase
+	1) ./ipa-base-prepare.sh --createbase --repo $repository_address
 	2) ./ipa-base-prepare.sh --installipa
 	3) ./ipa-demo.sh
 
@@ -32,4 +33,4 @@ CPU dual-core with virtualization support
 
 SW Requirements:
 OS: Fedora 15 x86_64, RHEL 6.1 x86_64
-Pkgs: libvirt, qemu, qemu-kvm, qemu-img, qemu-system, python-virtinst, openssh-clients, libguestfs-tools-c (Optionaly you can install virt-manager and/or virt-viewer)
+Pkgs: libvirt, qemu, qemu-kvm, qemu-img, qemu-system, python-virtinst, openssh-clients (Optionaly you can install virt-manager and/or virt-viewer)
