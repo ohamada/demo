@@ -225,11 +225,6 @@ function virtInstall {
 	fi
 }
 
-# function for getting freeipa dependencies withou ds, pki and freeipa pkgs
-function getIpaDependency {
-	yum deplist freeipa-server | grep -v pki | grep -v freeipa | grep -v dogtag | grep -v 389-ds | grep -v / | grep -v ".*\.so.*" | grep "dependency:" | awk '{print $2}' | awk -F\( '{print $1}' | uniq -u | tr '\n' ' '
-}
-
 # function for editing kickstartfile
 # first param - template
 # second param - output file
@@ -250,7 +245,8 @@ function prepareKickstart {
 	# install all ipa dependencies except ds, pki a freeipa pkgs
 	# bind must be added manually since it's not in ipa dependencies
 	echo "yum -y install --nogpgcheck --enablerepo=updates-testing bind bind-dyndb-ldap" >> $2
-	echo "yum -y install --nogpgcheck --enablerepo=updates-testing `getIpaDependency`" >> $2
+	# get ipa dependencies
+	echo "yum -y install --nogpgcheck --enablerepo=updates-testing \`yum deplist freeipa-server | grep -v pki | grep -v freeipa | grep -v dogtag | grep -v 389-ds | grep -v / | grep -v \".*\.so.*\" | grep \"dependency:\" | awk '{print \$2}' | awk -F\( '{print \$1}' | uniq -u | tr '\n' ' '\`" >> $2
 	
 	echo "cd /root/" >> $2
 	echo "mkdir --mode=700 .ssh" >> $2
@@ -599,6 +595,9 @@ then
 
 	printf "\t[3/6] Preparing kickstart file\n"
 	prepareKickstart $KSFILE $KSSERVER $USERNAME $SSHKEY_FILENAME
+	
+	echo "Kickstart file for ipa-base machine:" >> $LOGFILE
+	cat $KSSERVER >> $LOGFILE
 
 	printf "\t[4/6] Creating virtual machine. This action can take several minutes!\n"
 	virtInstall $TEMPORARYIMAGE $VMNAME $KSSERVER $OSREPOSITORY $DISKSIZE $LOGFILE
