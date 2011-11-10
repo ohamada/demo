@@ -181,7 +181,7 @@ function cleanVMs ()
 			virsh destroy $SERVERNAME &>> $LOGFILE
 		fi
 		virsh undefine $SERVERNAME &>> $LOGFILE
-		rm -rf $IMGDIR/$SERVERNAME.qcow2 $SERVERNAME &>> $LOGFILE
+		rm -f $IMGDIR/$SERVERNAME.qcow2 &>> $LOGFILE
 	fi
 	
 	for i in `virsh list | grep $CLIENTBASENAME`; do
@@ -191,7 +191,7 @@ function cleanVMs ()
 			virsh destroy $tmp &>> $LOGFILE
 		fi
 		virsh undefine $tmp &>> $LOGFILE
-		rm -rf $IMGDIR/$tmp.qcow2 $SERVERNAME &>> $LOGFILE
+		rm -f $IMGDIR/$tmp.qcow2 &>> $LOGFILE
 	done
 	return 0	
 }

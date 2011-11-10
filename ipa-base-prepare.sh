@@ -219,8 +219,8 @@ function virtInstall {
 	then
 		echo "Unable to create virtual machine!"
 		virsh undefine $2
-		rm -rf $1
-		rm -rf $3
+		rm -f $1
+		rm -f $3
 		exit 1
 	fi
 }
