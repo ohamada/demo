@@ -20,18 +20,28 @@ function getnetmask()
 
 # function to prepare config file for setting static ip address
 # $1 - full path to config file
-# $2 - [optional] address of dns server
+# $2 - hostname
+# $3 - domain
+# $4 - [optional] address of dns server
 function configeth0 {
+	localip=`getlocalip`
 	echo "DEVICE=eth0" > $1
 	echo "BOOTPROTO=static" >> $1
 	echo "ONBOOT=yes" >> $1
-	echo "IPADDR=`getlocalip`" >> $1
+	echo "IPADDR=$localip" >> $1
 	echo "BROADCAST=`getbcast`" >> $1
 	echo "NETMASK=`getnetmask`" >> $1
-	if [ ! -z $2 ]
+	if [ ! -z $4 ]
 	then
-		echo "DNS1=`getlocalip`" >> $1
+		echo "DNS1=$localip" >> $1
 	fi
+
+	mv /etc/sysconfig/network /etc/sysconfig/network.bak
+	cat /etc/sysconfig/network.bak | grep -v HOSTNAME > /etc/sysconfig/network
+	echo "HOSTNAME=$2.$3" >> /etc/sysconfig/network
+	
+	echo "$localip $2.$3 $2" >> /etc/hosts
+	hostname "$2.$3"
 }
 
 
@@ -131,9 +141,6 @@ then
 fi
 
 
-echo "$IPADDR $HOST.$DOMAIN $HOST" >> /etc/hosts
-hostname "$HOST.$DOMAIN"
-
 if [ "$SETDNS" != "" ]
 then
 	echo "nameserver 127.0.0.1" > /etc/resolv.conf
@@ -144,9 +151,9 @@ service NetworkManager stop
 chkconfig NetworkManager off
 chkconfig network on
 
-configeth0 $eth0conf $dns
+configeth0 $eth0conf $HOST $DOMAIN $dns
 
-service network start
+service network restart
 
 # freeipa server installation with DNS
 ipa-server-install --realm=$REALM --domain=$DOMAIN --ds-password=$PASSWD --master-password=$PASSWD --admin-password=$PASSWD --setup-dns --no-forwarders --hostname=$HOST.$DOMAIN --ip-address=$IPADDR -U

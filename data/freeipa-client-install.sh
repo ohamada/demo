@@ -20,18 +20,30 @@ function getnetmask()
 
 # function to prepare config file for setting static ip address
 # $1 - full path to config file
-# $2 - [optional] address of dns server
+# $2 - hostname
+# $3 - domain
+# $4 - [optional] address of dns server
 function configeth0 {
+	localip=`getlocalip`
 	echo "DEVICE=eth0" > $1
 	echo "BOOTPROTO=static" >> $1
 	echo "ONBOOT=yes" >> $1
-	echo "IPADDR=`getlocalip`" >> $1
+	echo "IPADDR=$localip" >> $1
 	echo "BROADCAST=`getbcast`" >> $1
 	echo "NETMASK=`getnetmask`" >> $1
-	if [ ! -z $2 ]
+	if [ ! -z $4 ]
 	then
-		echo "DNS1=$2" >> $1
+		echo "DNS1=$4" >> $1
+        # set new dns server
+        echo "nameserver $4" > /etc/resolv.conf
 	fi
+
+	mv /etc/sysconfig/network /etc/sysconfig/network.bak
+	cat /etc/sysconfig/network.bak | grep -v HOSTNAME > /etc/sysconfig/network
+	echo "HOSTNAME=$2.$3" >> /etc/sysconfig/network
+	
+	echo "$localip $2.$3 $2" >> /etc/hosts
+	hostname "$2.$3"
 }
 
 function printhelp()
@@ -101,19 +113,13 @@ then
 	exit 1
 fi
 
-echo "$clientip        $clienthostname.$domain $clienthostname" >> /etc/hosts
-echo "hostname $clienthostname.$domain"
-
-# set new dns server
-echo "nameserver $dns" > /etc/resolv.conf
-
 service NetworkManager stop
 chkconfig NetworkManager off
 chkconfig network on
 
-configeth0 $eth0conf $dns
+configeth0 $eth0conf $clienthostname $domain $dns
 
-service network start
+service network restart
 
 # run the install
 ipa-client-install --server=$serverhostname.$domain --domain=$domain --hostname=$clienthostname.$domain --password=$password --enable-dns-updates --mkhomedir -U
