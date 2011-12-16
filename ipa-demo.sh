@@ -536,11 +536,15 @@ then
 fi
 
 # install freeipa-server
-ssh $SSHOPT root@$SERVERIP -i $SSHKEY_FILENAME "sudo sh ~/$SERVERSH -d $DOMAIN -c $SERVERHOSTNAME -r $REALM -p $PASSWORD -e $PASSWORD" &>> $LOGFILE
+ssh $SSHOPT root@$SERVERIP -i $SSHKEY_FILENAME "sh ~/$SERVERSH -d $DOMAIN -c $SERVERHOSTNAME -r $REALM -p $PASSWORD -e $PASSWORD" &>> $LOGFILE
 
 if [ ! $? -eq 0 ]
 then
 	echo "Installation of freeipa-server failed." >&2
+	printf "\n\nipaserver-install.log output:\n\n" >> $LOGFILE
+	ssh $SSHOPT root@$SERVERIP -i $SSHKEY_FILENAME "cat /var/log/ipaserver-install.log" &>> $LOGFILE
+	printf "\n\n/var/log/messages output:\n\n" >> $LOGFILE
+	ssh $SSHOPT root@$SERVERIP -i $SSHKEY_FILENAME "cat /var/log/messages" &>> $LOGFILE
 	cleanVMs
 	exit 1
 fi
@@ -622,6 +626,17 @@ while [ $CLIENTCNT -lt $CLIENTNR ]; do
 	fi
 	
 	ssh $SSHOPT -i $SSHKEY_FILENAME root@"$CLIENTIP" "sh ~/$CLIENTSH -d $DOMAIN -c $CLIENTHOSTNAME -s $SERVERHOSTNAME -p $PASSWORD -n $SERVERIP" &>> $LOGFILE
+
+    if [ ! $? -eq 0 ]
+	then
+		echo "Unable to install freeipa-client on the client VM." >&2
+        printf "\n\n/var/log/ipaclient-install.log\n\n" &>> $LOGFILE
+        ssh $SSHOPT -i $SSHKEY_FILENAME root@"$CLIENTIP" "cat /var/log/ipaclient-install.log" &>> $LOGFILE
+        printf "\n\n/var/log/messages\n\n" &>> $LOGFILE
+        ssh $SSHOPT -i $SSHKEY_FILENAME root@"$CLIENTIP" "cat /var/log/messages" &>> $LOGFILE
+		cleanVMs
+		exit 1
+	fi
 	
 	# set PASSWORD for user 'ipademo'
 	if [ $CLIENTCNT -eq 0 ]
