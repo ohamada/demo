@@ -12,6 +12,6 @@ echo "ATTENTION: It's strongly recommended to use nearest repository, because th
 Optional arguments:
 -h, --help - print help
 --base - specify one base image - if you want to use base images that is older or located in different directory then the archive.
---archive - specify directory containing base images
+--imgdir - where all the images (including the temporary ones) will be stored
 --sshkey - specify private ssh key to be used. It's supposed that public key has the same name with \'.pub\' suffix. The key will be used for connecting to VMs.
 

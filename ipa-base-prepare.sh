@@ -17,11 +17,14 @@ CREATEBASE=0
 INSTALLIPA=0
 SETREPO=0
 
+# name of directory containing archived base images and work images
+IMGDIR=/var/lib/libvirt/images
+
 # file name format: f15-ipa-demo-base.date.qcow2
 # file with new image
 IMGNAME="f15-ipa-demo-base"
-TEMPORARYIMAGE="$WORKINGDIR/ipa-working-image.qcow2"
-INSTALLIMAGE="$WORKINGDIR/ipa-ready-image.qcow2"
+TEMPORARYIMAGE="ipa-working-image.qcow2"
+INSTALLIMAGE="ipa-ready-image.qcow2"
 
 # file with base image
 BASEIMAGE=""
@@ -46,6 +49,13 @@ SSHOPT="-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
 # configuration data necessary for installation
 VMNAME=f15-ipa-base
 
+#server installation script
+SERVERSH=freeipa-server-install.sh
+LOCALSERVERSH=$DATADIR/$SERVERSH
+#clinet installation script 
+CLIENTSH=freeipa-client-install.sh
+LOCALCLIENTSH=$DATADIR/$CLIENTSH
+
 # number of cpu's used by virtual machine
 VCPU=1
 # availible ram ( 1 gb = 1048576 )
@@ -60,10 +70,6 @@ DISKSIZE=10
 # fedora repository
 OSREPOSITORY=http://download.fedoraproject.org/pub/fedora/linux/releases/$OSVERSION/Fedora/$ARCH/os
 #OSREPOSITORY=http://download.englab.brq.redhat.com/pub/fedora/linux/releases/$OSVERSION/Fedora/$ARCH/os
-
-# name of directory containing ARCHIVEd base images
-ARCHIVE=archive
-
 
 ###############################################################################
 #############
@@ -128,7 +134,7 @@ function printHelp {
 	echo "Ipa-base-prepare script"
 	echo "This script should help you prepare base images to allow you create virtual machines that are ready for FreeIPA installation."
 	echo "ATTENTION: You must have libvirt, qemu, qemu-kvm, qemu-img, qemu-system, python-virtinst, openssh-clients installed to run the script correctly."
-	echo "usage: ipa-base-prepare.sh [--createbase | --updatebase | --installipa][--repo repoaddr][--sshkey pathtokey][--archive archdir][-h | --help]"
+	echo "usage: ipa-base-prepare.sh [--createbase | --updatebase | --installipa][--repo repoaddr][--sshkey pathtokey][--imgdir imgdir][-h | --help]"
 	echo "Mandatory arguments:"
 	echo "--repo - set fedora repository, by default it's: $1"
 	echo "ATTENTION: You must use nearest repository, because the default one is overloaded. Mirrors list is here: http://mirrors.fedoraproject.org/publiclist/Fedora/15/x86_64/"
@@ -138,8 +144,8 @@ function printHelp {
 	echo ""
 	echo "Optional arguments:"
 	echo "-h, --help - print help"
-	echo "--base - specify one base image  - if you want to use base images that is older or located in different directory then the archive."
-	echo "--archive - specify directory containing base images"
+	echo "--base - specify one base image  - if you want to use base images that is older or located in different directory then the imgage directory."
+	echo "--imgdir - where all the images (including the temporary ones) will be stored"
 	echo "--sshkey - specify private ssh key to be used. It's supposed that public key has the same name with \'.pub\' suffix. The key will be used for connecting to VMs."
 }
 
@@ -364,7 +370,7 @@ function getDate ()
 
 # function to find last VM
 # $1 - date of actual image
-# $2 - folder with image ARCHIVE
+# $2 - folder with images
 # $3 - first part of image name, examp. "f15-ipa-base-image"
 function getLastImage()
 {
@@ -456,12 +462,12 @@ while [ ! -z $1 ]; do
 		shift
 		;;
 		
-	--archive) if [ -z $2 ]
+	--imgidr) if [ -z $2 ]
 				then
-					echo "You must specify ARCHIVE directory!"
+					echo "You must specify directory for images!"
 					exit 1
 				fi
-				ARCHIVE=$2
+				IMGDIR=$2
 				shift
 				;;
 				
@@ -542,25 +548,18 @@ fi
 #########
 ###############################################
 
-IMGFILE=$IMGNAME.`getDate`.qcow2
-
 if [ $CREATEBASE -eq 1 ]
 then
-	echo "Creating base image:"
-	if [ -z $IMGFILE ]
-	then
-		echo "Image file wasn't specified" >&2
-		exit 1
-	fi
-
 	printf "\t[1/6] Creating/checking directory for saving base images\n"
 	# create folder for achivation of base images and set it as readable for everyone
-	if [ ! -d $ARCHIVE ]
+	if [ ! -d $IMGDIR ]
 	then
-		mkdir $ARCHIVE
+		mkdir $IMGDIR
 	fi
 
-	chmod a+r $ARCHIVE
+    IMGFILE=$IMGDIR/$IMGNAME.`getDate`.qcow2
+    TEMPORARYIMAGE=$IMGDIR/$TEMPORARYIMAGE
+    INSTALLIMAGE=$IMGDIR/$INSTALLIMAGE
 	
 	# create new SSH key or check existence of the specified one
 	if [ -z "$SSHKEY_FILENAME" ]
@@ -604,22 +603,26 @@ then
 
 	waitForInst $VMNAME
 	
-	printf "\t[5/6] Saving image in ARCHIVE\n"
-	mv $TEMPORARYIMAGE $ARCHIVE/$IMGFILE
+	printf "\t[5/6] Saving image in IMGDIR\n"
+	mv $TEMPORARYIMAGE $IMGFILE
 	
 	printf "\t[6/6] Cleaning up\n"
 	virsh undefine $VMNAME &>> $LOGFILE
 		
 	cleanUp $KSSERVER
-	echo "Finished! New base image is saved in $ARCHIVE/$IMGFILE !"
+	echo "Finished! New base image is saved in $IMGFILE !"
 else
 	#
 	# Update of base image or installation of freeipa-server
 	#
 	
 	CURRENTDATE=`getDate`
-	
-	NEWBASEIMAGE=$IMGNAME.$CURRENTDATE.qcow2
+
+    IMGFILE=$IMGDIR/$IMGNAME.`getDate`.qcow2
+
+    TEMPORARYIMAGE=$IMGDIR/$TEMPORARYIMAGE
+    INSTALLIMAGE=$IMGDIR/$INSTALLIMAGE
+	NEWBASEIMAGE=$IMGDIR/$IMGNAME.$CURRENTDATE.qcow2
 	
 	# create folder for saving certificate
 	SSHKEY_FOLDER=`lastCharInPath $SSHKEY_FOLDER`
@@ -651,19 +654,19 @@ else
 	# prepare image for ipa-server
 	if [ -z $BASEIMAGE ]
 	then
-		# check existence of ARCHIVE folder
-		if [ ! -d $ARCHIVE ]
+		# check existence of IMGDIR folder
+		if [ ! -d $IMGDIR ]
 		then
-			echo "Folder $ARCHIVE doesn't exist!" >&2
+			echo "Folder $IMGDIR doesn't exist!" >&2
 			exit 1
 		fi
-		if [ -z "`getLastImage $CURRENTDATE $ARCHIVE $IMGNAME`" ]
+		if [ -z "`getLastImage $CURRENTDATE $IMGDIR $IMGNAME`" ]
 		then
 			echo "No base images found!" >&2
 			exit 1
 		fi
 		
-		qemu-img create -b $ARCHIVE/`getLastImage $CURRENTDATE $ARCHIVE $IMGNAME` -f qcow2 "$TEMPORARYIMAGE" &>> $LOGFILE
+		qemu-img create -b $IMGDIR/`getLastImage $CURRENTDATE $IMGDIR $IMGNAME` -f qcow2 "$TEMPORARYIMAGE" &>> $LOGFILE
 	else
 		qemu-img create -b $BASEIMAGE -f qcow2 "$TEMPORARYIMAGE" &>> $LOGFILE
 	fi
@@ -722,6 +725,26 @@ else
 			cleanUp $TEMPORARYIMAGE
 			exit 1
 		fi
+
+        # copy server install script to server
+        cat $LOCALSERVERSH | ssh $SSHOPT -i $SSHKEY_FILENAME root@"$MACHINEIP" "cat ->>~/$SERVERSH" &>> $LOGFILE
+        if [ ! $? -eq 0 ]
+        then
+            echo "Unable to connect to VM." >&2
+			cleanVMs $VMNAME
+			cleanUp $TEMPORARYIMAGE
+            exit 1
+        fi
+
+        # copy client install script to client and execute it
+        cat $LOCALCLIENTSH | ssh $SSHOPT -i $SSHKEY_FILENAME root@"$MACHINEIP" "cat ->>~/$CLIENTSH" &>> $LOGFILE
+        if [ ! $? -eq 0 ]
+        then
+            echo "Unable to connect to the client VM." >&2
+			cleanVMs $VMNAME
+			cleanUp $TEMPORARYIMAGE
+            exit 1
+        fi
 	fi
 	
 	printf "\t[7/9] Shuting down the VM\n"
@@ -745,18 +768,7 @@ else
 	virsh undefine $VMNAME &>> $LOGFILE
 	cleanUp $TEMPORARYIMAGE
 	
-	if [ $UPDATEBASE -eq 1 ]
-	then
-		if [ -z $BASEIMAGE ]
-		then
-			mv $NEWBASEIMAGE $ARCHIVE/$NEWBASEIMAGE
-			echo "Finished: New base image is saved in $ARCHIVE/$NEWBASEIMAGE"
-		else
-			echo "Finished: New base image is saved in `pwd`/$NEWBASEIMAGE"
-		fi		
-	else
-		echo "Finished: Base image for installation is ready in $NEWBASEIMAGE"
-	fi
+    echo "Finished: Base image for installation is ready in $NEWBASEIMAGE"
 fi
 
 exit 0
