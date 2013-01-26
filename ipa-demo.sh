@@ -124,13 +124,16 @@ function printHelp {
 	echo "Ipa-demo installation script"
 	echo "This script should help you through setting up freeipa server and client in order to be able to try it out."
 	echo " ATTENTION: You must have libvirt, qemu, qemu-kvm, qemu-img, qemu-system, python-virtinst, openssh-clients installed to run the script correctly."
-	echo "usage: ipa-demo.sh [--IMGDIR dir][--sshkey keyfile][-clients CLIENTNR][--base BASEIMAGE][-h|--help]"
+	echo -e "usage: ipa-demo.sh [--base BASEIMAGE][--imgdir IMGDIR][--sshkey KEYFILE][--clients CLIENTNR][--repo REPOSITORY][--createbase]\n\t[--updatebase][--vmsonly][-h|--help]"
 	echo "-h,--help - print help"
 	echo "--imgdir - set directory to store images. By default \"$2\"."
 	echo "--sshkey - specify sshkey for connecting to the VMs. (Must be the same that was used during creation of base image."
 	echo "--base - specify the base image. By default script assumes existence of base image called \"$1\" in current directory."
 	echo "--clients - number of client VMs to be created. By default $3."
-
+	echo "--repo - URL address of Fedora installation repository, see README for more information."
+	echo "--createbase - prepare only base image."
+	echo "--updatebase - update base image. ATTENTION: all virtual machine images that derived from the base image will get corrupt and unusable."
+	echo "--vmsonly - install only virtual machines (base image and ssh keys must already exist)."
 }
 
 # function to prepare xml file for virt-image to rerun
