@@ -89,6 +89,7 @@ ALL=1
 # $1 - name of VM
 function getVmIp ()
 {
+    local LANG=en_US
 	macaddr=`virsh dumpxml $1 | grep "mac address" | awk -F\' '{print $2}'`
 	
 	ipaddr=`arp -an | grep $macaddr`

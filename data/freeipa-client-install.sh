@@ -3,18 +3,21 @@
 #function to get IP address of local computer
 function getlocalip()
 {
+    local LANG=en_US
 	/sbin/ifconfig ${1:-eth0} | awk '/inet addr/ {print $2}' | awk -F: '{print $2}';
 }
 
 #function to get bcast address for local computer
 function getbcast()
 {
+    local LANG=en_US
 	/sbin/ifconfig ${1:-eth0} | awk '/Bcast/ {print $3}' | awk -F: '{print $2}';
 }
 
 #function to get network mask for local computer
 function getnetmask()
 {
+    local LANG=en_US
 	/sbin/ifconfig ${1:-eth0} | awk '/Mask/ {print $4}' | awk -F: '{print $2}';
 }
 
