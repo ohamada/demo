@@ -490,7 +490,7 @@ function updateBaseImage ()
 
     printf "\t[4/7] Copying installation scripts to the VM\n"
     # copy server install script to server
-    cat $LOCALSERVERSH | ssh $SSHOPT -i $SSHKEY_FILENAME root@"$MACHINEIP" "cat ->>~/$SERVERSH" &>> $LOGFILE
+    cat $LOCALSERVERSH | ssh $SSHOPT -i $SSHKEY_FILENAME root@"$MACHINEIP" "cat >~/$SERVERSH" &>> $LOGFILE
     if [ ! $? -eq 0 ]
     then
         echo "Unable to connect to VM." >&2
@@ -500,7 +500,7 @@ function updateBaseImage ()
     fi
 
     # copy client install script to client and execute it
-    cat $LOCALCLIENTSH | ssh $SSHOPT -i $SSHKEY_FILENAME root@"$MACHINEIP" "cat ->>~/$CLIENTSH" &>> $LOGFILE
+    cat $LOCALCLIENTSH | ssh $SSHOPT -i $SSHKEY_FILENAME root@"$MACHINEIP" "cat >~/$CLIENTSH" &>> $LOGFILE
     if [ ! $? -eq 0 ]
     then
         echo "Unable to connect to the client VM." >&2
