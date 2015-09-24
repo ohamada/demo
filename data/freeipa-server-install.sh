@@ -196,7 +196,7 @@ then
         iptables -I INPUT -p udp --dport 53 -j ACCEPT
         iptables -I INPUT -p udp --dport 123 -j ACCEPT
         # save iptables setting
-        /etc/init.d/iptables save
+        /usr/libexec/iptables/iptables.init save
 fi
 
 # Get Kerberos ticket

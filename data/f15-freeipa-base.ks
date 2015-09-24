@@ -19,6 +19,7 @@ zerombr
 clearpart --all --initlabel
 autopart
 xconfig --startxonboot
+services --disabled=firewalld --enabled=iptables
 
 repo --name=fedora --mirrorlist=https://mirrors.fedoraproject.org/mirrorlist?repo=fedora-$releasever&arch=$basearch
 repo --name=updates --mirrorlist=https://mirrors.fedoraproject.org/mirrorlist?repo=updates-released-f$releasever&arch=$basearch
@@ -37,6 +38,7 @@ audit
 openssh-server
 openssh-clients
 iptables
+iptables-services
 mc
 vim-enhanced
 acpid
