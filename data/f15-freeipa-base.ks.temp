@@ -49,9 +49,17 @@ freeipa-server
 
 %end
 
+%post --nochroot --log=/root/ks-post-install.log
+mkdir --mode=700 /mnt/sysimage/root/.ssh
+sed "s/.*ssh_key='\([^']*\)'.*/\1/" /proc/cmdline >/mnt/sysimage/root/.ssh/authorized_keys
+chmod 600 /mnt/sysimage/root/.ssh/authorized_keys
+%end
+
 # post installation scripts
 %post --log=/root/ks-post-install.log
 set -x
+
+restorecon -Rv /root/.ssh
 
 mv /etc/sudoers /etc/sudoers_old
 grep -v requiretty /etc/sudoers_old > /etc/sudoers

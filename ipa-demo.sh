@@ -382,12 +382,13 @@ function createSshCert {
 # $3 - kickstart file
 # $4 - os repository
 # $5 - disk size
-# $6 - log file
+# $6 - ssh key
+# $7 - log file
 
 function virtInstall {
 	
 	#prepare image for ipa-server
-	qemu-img create -f qcow2 -o preallocation=metadata "$1" "$5"G &>> $6
+	qemu-img create -f qcow2 -o preallocation=metadata "$1" "$5"G &>> $7
 	
 	if [ ! $? -eq 0 ]
 	then
@@ -400,7 +401,7 @@ function virtInstall {
 	    --initrd-inject="$3" \
 	    --name="$2" \
 	    --extra-args="ks=file:/$3 \
-	      console=tty0 console=ttyS0,115200" \
+	      console=tty0 console=ttyS0,115200 ssh_key='$(cat "$6".pub)'" \
 	    --location="$4" \
 	    --disk path="$1",format=qcow2 \
 	    --ram 1024 \
@@ -442,16 +443,6 @@ function prepareKickstart {
 	lines=$(($lines-2))
 	head -$lines $tempfile > $2
 	
-	echo "cd /root/" >> $2
-	echo "mkdir --mode=700 .ssh" >> $2
-	echo "echo \"`cat $4.pub`\">>.ssh/authorized_keys" >> $2
-	echo "chmod 600 .ssh/authorized_keys" >> $2
-	
-	# Various authenticaion config changes
-	# Fix SELinux context on the newly created authorized_keys file
-	echo "restorecon /root/.ssh/authorized_keys" >> $2
-	# close the post section
-	tail -2 $tempfile >> $2
 	
 	#cleanUp
 	rm -f $tempfile
@@ -470,7 +461,7 @@ function createBaseImage ()
     VMNAME=`createMachineName $BASEMACHINE_NAME`
 
 	printf "\t[2/4] Creating virtual machine. This action can take several minutes!\n"
-	virtInstall $TEMPORARYIMAGE $VMNAME $KSSERVER $OSREPOSITORY $DISKSIZE $LOGFILE
+	virtInstall $TEMPORARYIMAGE $VMNAME $KSFILE $OSREPOSITORY $DISKSIZE $SSHKEY_FILENAME $LOGFILE
 
 	waitForInst $VMNAME
 
