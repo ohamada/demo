@@ -58,8 +58,8 @@ CLIENTBASENAME=ipademo-client
 
 # number of cpu's used by virtual machine
 VCPU=1
-# availible ram ( 1 gb = 1048576 )
-VRAM=1048576
+# availible ram in MiB
+VRAM=1024
 # ARCHitecture
 ARCH=x86_64
 # fedora os version
@@ -315,26 +315,6 @@ function createDiskName ()
     fi    
 }
 
-# function for creating disk images based on base image
-# $1 - base image location
-# $2 - new image
-# $3 - log file
-function createDiskImage ()
-{
-	if [ -f "$2" ]
-	then
-		echo "Image file $2 already exists!" >&2
-		exit 1
-	fi
-	qemu-img create -b $1 -f qcow2 "$2" &>> $3
-	
-	if [ ! $? -eq 0 ]
-	then
-		echo "Unable to create VM's disk image! Check log file: $3"
-		exit 1
-	fi
-}
-
 # function to generate ssh keys to allow file operations over scp
 # $1 - name of key
 # $2 - log file
@@ -409,6 +389,54 @@ function virtInstall {
 	fi
 }
 
+
+#function for cloning an image and preparing a virtual machine
+# $1 - original image file
+# $2 - resulting snapshot image
+# $3 - name of machine
+# $4 - number of cpus
+# $5 - MiBs of memory
+# $6 - architecture
+# $7 - log file
+function virtCreate ()
+{
+	if [ -f "$2" ]
+	then
+		echo "Image file $2 already exists!" >&2
+		exit 1
+	fi
+	qemu-img create -b $1 -f qcow2 "$2" &>> $7
+
+	if [ ! $? -eq 0 ]
+	then
+		echo "Unable to create VM's disk image! Check log file: $7"
+		exit 1
+	fi
+
+	#install ipa-server vm
+	virt-install --connect=qemu:///system \
+	    --name="$3" \
+	    --disk path="$2" \
+	    --ram $5 \
+	    --vcpus=$4 \
+	    --arch $6 \
+	    --check-cpu \
+	    --accelerate \
+	    --hvm \
+	    --os-type=linux \
+	    --graphics vnc \
+	    --boot hd \
+	    --noautoconsole &>> $7 \
+
+	if [ ! $? -eq 0 ]
+	then
+		echo "Unable to create VM! Check log file: $7" >&2
+		cleanVMs $3
+		cleanUp $2
+		exit 1
+	fi
+}
+
 function createBaseImage ()
 {
     printf "Creating base image\n"
@@ -430,32 +458,11 @@ function createBaseImage ()
 function updateBaseImage ()
 {
     printf "Updating base image\n"
-    qemu-img create -b $IMGFILE -f qcow2 $TEMPORARYIMAGE &>> $LOGFILE
-    
-    if [ ! $? -eq 0 ]
-	then
-		echo "Unable to create temporary disk image! Check log file: $LOGFILE" >&2
-		exit 1
-	fi
 
     VMNAME=`createMachineName $BASEMACHINE_NAME`
 
-	# prepare xml definition of VM that will be used to run system update
-	virtImageXml $VMNAME $TEMPORARYIMAGE $VCPU $VRAM $ARCH
-	
-	printf "\t[1/8] Creating virtual machine for image update\n"
-	# start VM defined by XML file
-	virt-image $VMNAME.xml &>> $LOGFILE
-	
-	if [ ! $? -eq 0 ]
-	then
-		echo "Unable to create VM! Check log file: $LOGFILE" >&2
-		cleanVMs $VMNAME
-		cleanUp $VMNAME.xml $TEMPORARYIMAGE
-		exit 1
-	fi
-	
-	rm -f $VMNAME.xml
+	printf "\t[1/8] Creating and starting server VM\n"
+	virtCreate $IMGFILE $TEMPORARYIMAGE $VMNAME $VCPU $VRAM $ARCH $LOGFILE
 	
 	# get the machine ip
 	printf "\t[2/8] Starting virtual machine\n"
@@ -535,27 +542,9 @@ function createEnvironment ()
     printf "Creating VM environment\n"
 
     printf "Creating FreeIPA server machine\n"
-    printf "\t[1/5] Creating disk image for server VM\n"
-    # create disk image for new VM
-    createDiskImage $IMGFILE "$IMGDIR/$SERVERNAME.qcow2" $LOGFILE
-    printf "\t[2/5] Creating definition file for server VM\n"
-    # prepare xml definition of VM that will be used to run system update
-    SERVERNAME=`createMachineName $SERVERNAME`
-    virtImageXml $SERVERNAME "$IMGDIR/$SERVERNAME.qcow2" $VCPU $VRAM $ARCH
-    printf "\t[3/5] Starting server VM\n"
-    # start VM defined by XML file
-    virt-image $SERVERNAME.xml &>> $LOGFILE
 
-    if [ ! $? -eq 0 ]
-    then
-        echo "Unable to create VM! Check log file: $LOGFILE"
-        cleanVMs
-        cleanUp $SERVERNAME.xml $IMGDIR/$SERVERNAME.qcow2
-        exit 1
-    fi
-
-    # remove xml file
-    cleanUp $SERVERNAME.xml
+    printf "\t[1/5] Creating and starting server VM\n"
+    virtCreate $IMGFILE "$IMGDIR/$SERVERNAME.qcow2" $SERVERNAME $VCPU $VRAM $ARCH $LOGFILE
 
     # get server ip
     SERVERIP=`getVmIp $SERVERNAME`
@@ -597,26 +586,9 @@ function createEnvironment ()
         echo "Installing client $(($CLIENTCNT+1)) of $CLIENTNR"
         CLIENTNAME=`createMachineName $CLIENTBASENAME-$CLIENTCNT`
         CLIENTHOSTNAME="client-$CLIENTCNT"
-        
-        printf "\t[1/5] Creating disk image for client VM\n"
-        # create disk image for new VM
-        createDiskImage $IMGFILE "$IMGDIR/$CLIENTNAME.qcow2" $LOGFILE
-        printf "\t[2/5] Creating definition file for server VM\n"
-        # prepare xml definition of VM that will be used to run system update
-        virtImageXml $CLIENTNAME "$IMGDIR/$CLIENTNAME.qcow2" $VCPU $VRAM $ARCH
-        printf "\t[3/5] Starting client VM\n"
-        # start VM defined by XML file
-        virt-image $CLIENTNAME.xml &>> $LOGFILE
 
-        if [ ! $? -eq 0 ]
-        then
-            echo "Unable to create VM! Check log file: $LOGFILE"
-            cleanUp $CLIENTNAME.xml
-            cleanVMs
-            exit 1
-        fi
-
-        cleanUp $CLIENTNAME.xml
+        printf "\t[1/5] Creating and starting client VM\n"
+        virtCreate $IMGFILE "$IMGDIR/$CLIENTNAME.qcow2" $CLIENTNAME $VCPU $VRAM $ARCH $LOGFILE
         
         # get server ip
         CLIENTIP=`getVmIp $CLIENTNAME`
