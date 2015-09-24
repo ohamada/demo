@@ -43,11 +43,9 @@ firefox
 %end
 
 # post installation scripts
-%post
-(
+%post --log=/root/ks-post-install.log
 set -x
 
 yum update -y --nogpgcheck --enablerepo=updates-testing
 
-) > /root/ks-post-install.log
 %end
