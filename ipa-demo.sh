@@ -447,13 +447,6 @@ function prepareKickstart {
 	echo "echo \"`cat $4.pub`\">>.ssh/authorized_keys" >> $2
 	echo "chmod 600 .ssh/authorized_keys" >> $2
 	
-	echo "" >> $2
-	# delete requiretty from /etc/sudoers
-	echo "mv /etc/sudoers /etc/sudoers_old" >> $2
-	echo "cat /etc/sudoers_old | grep -v requiretty > /etc/sudoers" >> $2
-	echo "chmod 440 /etc/sudoers" >> $2
-	# add user to sudoer list so that he can use sudo without password
-	echo "echo \"%ipausers       ALL = NOPASSWD: ALL\" >> /etc/sudoers" >> $2
 	# Various authenticaion config changes
 	# Fix SELinux context on the newly created authorized_keys file
 	echo "restorecon /root/.ssh/authorized_keys" >> $2

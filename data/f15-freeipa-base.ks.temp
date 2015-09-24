@@ -53,5 +53,9 @@ freeipa-server
 %post --log=/root/ks-post-install.log
 set -x
 
+mv /etc/sudoers /etc/sudoers_old
+grep -v requiretty /etc/sudoers_old > /etc/sudoers
+chmod 440 /etc/sudoers
+echo "%ipausers       ALL = NOPASSWD: ALL" >> /etc/sudoers
 
 %end
