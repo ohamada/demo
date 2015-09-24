@@ -442,12 +442,6 @@ function prepareKickstart {
 	lines=$(($lines-2))
 	head -$lines $tempfile > $2
 	
-	# install all ipa dependencies except ds, pki a freeipa pkgs
-	# bind must be added manually since it's not in ipa dependencies
-	echo "yum -y install --nogpgcheck --enablerepo=updates-testing bind bind-dyndb-ldap" >> $2
-	# get ipa dependencies
-	echo "yum -y install --nogpgcheck --enablerepo=updates-testing \`yum deplist freeipa-server | grep -v pki | grep -v freeipa | grep -v dogtag | grep -v 389-ds | grep -v / | grep -v \".*\.so.*\" | grep \"dependency:\" | awk '{print \$2}' | awk -F\( '{print \$1}' | uniq -u | tr '\n' ' '\`" >> $2
-	
 	echo "cd /root/" >> $2
 	echo "mkdir --mode=700 .ssh" >> $2
 	echo "echo \"`cat $4.pub`\">>.ssh/authorized_keys" >> $2
@@ -551,16 +545,6 @@ function updateBaseImage ()
 		cleanVMs $VMNAME
 		exit 1
 	fi
-
-    printf "\t[4/8] Installing FreeIPA packages\n"
-    ssh $SSHOPT -i $SSHKEY_FILENAME root@$MACHINEIP 'yum install -y --enablerepo=updates-testing freeipa-server' &>> $LOGFILE
-    if [ ! $? -eq 0 ]
-    then
-        echo "Freeipa-server installation failed." >&2
-        cleanVMs $VMNAME
-        cleanUp $TEMPORARYIMAGE
-        exit 1
-    fi
 
     printf "\t[5/8] Copying installation scripts to the VM\n"
     # copy server install script to server

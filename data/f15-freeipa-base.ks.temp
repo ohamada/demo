@@ -23,7 +23,7 @@ repo --name=fedora --mirrorlist=https://mirrors.fedoraproject.org/mirrorlist?rep
 repo --name=updates --mirrorlist=https://mirrors.fedoraproject.org/mirrorlist?repo=updates-released-f$releasever&arch=$basearch
 repo --name=testing --mirrorlist=https://mirrors.fedoraproject.org/mirrorlist?repo=updates-testing-f$releasever&arch=$basearch
 
-# basic packages to install
+# packages to install
 %packages
 @core
 @base
@@ -43,6 +43,9 @@ acpid
 mc
 bash
 firefox
+bind
+bind-dyndb-ldap
+freeipa-server
 
 %end
 
