@@ -23,11 +23,8 @@ BASEIMAGE=""
 # configuration data necessary for installation
 BASEMACHINE_NAME=ipademo-base
 
-# kickstart files for server and clients
-KSSERVER=f15-freeipa-base.ks
-
 # kickstart file
-KSFILE=$DATADIR/f15-freeipa-base.ks.temp
+KSFILE=$DATADIR/f15-freeipa-base.ks
 
 # file containg VM names and ip addresses
 HOSTFILE=hosts.txt
@@ -400,7 +397,7 @@ function virtInstall {
 	virt-install --connect=qemu:///system \
 	    --initrd-inject="$3" \
 	    --name="$2" \
-	    --extra-args="ks=file:/$3 \
+	    --extra-args="ks=file:/$(basename $3) \
 	      console=tty0 console=ttyS0,115200 ssh_key='$(cat "$6".pub)'" \
 	    --location="$4" \
 	    --disk path="$1",format=qcow2 \
@@ -421,42 +418,13 @@ function virtInstall {
 		echo "Unable to create virtual machine!"
 		virsh undefine $2
 		rm -f $1
-		rm -f $3
 		exit 1
 	fi
-}
-
-# function for editing kickstartfile
-# first param - template
-# second param - output file
-# third param - user name
-function prepareKickstart {
-	tempfile=tmp
-	pkgs=`cat $1 | awk '{if($1=="%packages") print NR}'`
-	lines=`cat $1 | wc -l`
-	lines=$(($lines-$pkgs))
-	head -$pkgs $1 > $tempfile
-	echo "" >> $tempfile
-	tail -$lines $1 >> $tempfile
-
-	lines=`cat $tempfile | wc -l`
-	lines=$(($lines-2))
-	head -$lines $tempfile > $2
-	
-	
-	#cleanUp
-	rm -f $tempfile
 }
 
 function createBaseImage ()
 {
     printf "Creating base image\n"
-
-	printf "\t[1/4] Preparing kickstart file\n"
-	prepareKickstart $KSFILE $KSSERVER $USERNAME $SSHKEY_FILENAME
-	
-	echo "Kickstart file for ipa-base machine:" >> $LOGFILE
-	cat $KSSERVER >> $LOGFILE
 
     VMNAME=`createMachineName $BASEMACHINE_NAME`
 
@@ -468,9 +436,6 @@ function createBaseImage ()
 	printf "\t[3/4] Saving image into $IMGFILE\n"
 	mv $TEMPORARYIMAGE $IMGFILE
 	
-	printf "\t[4/4] Cleaning up\n"	
-	cleanUp $KSSERVER
-    
     virsh undefine $VMNAME
 
 	echo "Finished! New base image is saved in $IMGFILE !"
