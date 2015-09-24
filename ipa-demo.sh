@@ -443,10 +443,10 @@ function createBaseImage ()
 
     VMNAME=`createMachineName $BASEMACHINE_NAME`
 
-	printf "\t[2/4] Creating virtual machine. This action can take several minutes!\n"
+	printf "\t[1/2] Creating virtual machine. This action can take several minutes!\n"
 	virtInstall $TEMPORARYIMAGE $VMNAME $KSFILE $OSREPOSITORY $DISKSIZE $SSHKEY_FILENAME $LOGFILE
 
-	printf "\t[3/4] Saving image into $IMGFILE\n"
+	printf "\t[2/2] Saving image into $IMGFILE\n"
 	mv $TEMPORARYIMAGE $IMGFILE
 	
     virsh undefine $VMNAME
@@ -461,11 +461,11 @@ function updateBaseImage ()
 
     VMNAME=`createMachineName $BASEMACHINE_NAME`
 
-	printf "\t[1/8] Creating and starting server VM\n"
+	printf "\t[1/7] Creating and starting server VM\n"
 	virtCreate $IMGFILE $TEMPORARYIMAGE $VMNAME $VCPU $VRAM $ARCH $LOGFILE
 	
 	# get the machine ip
-	printf "\t[2/8] Starting virtual machine\n"
+	printf "\t[2/7] Starting virtual machine\n"
 	MACHINEIP=`getVmIp $VMNAME`
 	
 	waitForStart $MACHINEIP $SSHKEY_FILENAME $LOGFILE
@@ -477,8 +477,7 @@ function updateBaseImage ()
 		exit 1
 	fi
 
-    printf "Updating VM's system and FreeIPA installation\n"
-    printf "\t[3/8] Updating VM's system\n"
+    printf "\t[3/7] Updating VM's system\n"
     ssh $SSHOPT -i $SSHKEY_FILENAME root@$MACHINEIP 'yum update -y --enablerepo=updates-testing' &>> $LOGFILE
 	if [ ! $? -eq 0 ]
 	then
@@ -487,7 +486,7 @@ function updateBaseImage ()
 		exit 1
 	fi
 
-    printf "\t[5/8] Copying installation scripts to the VM\n"
+    printf "\t[4/7] Copying installation scripts to the VM\n"
     # copy server install script to server
     cat $LOCALSERVERSH | ssh $SSHOPT -i $SSHKEY_FILENAME root@"$MACHINEIP" "cat ->>~/$SERVERSH" &>> $LOGFILE
     if [ ! $? -eq 0 ]
@@ -508,14 +507,14 @@ function updateBaseImage ()
         exit 1
     fi
 
-    printf "\t[6/8] Shuting down the VM\n"
+    printf "\t[5/7] Shuting down the VM\n"
 	ssh $SSHOPT -i $SSHKEY_FILENAME root@$MACHINEIP 'shutdown' &>> $LOGFILE
 
 	waitForEnd $VMNAME
 
     TEMPORARYIMAGE_2=`createDiskName $TEMPIMAGE_PATTERN`
 
-	printf "\t[7/8] Saving new base image\n"
+	printf "\t[6/7] Saving new base image\n"
 	qemu-img convert $TEMPORARYIMAGE -O qcow2 $TEMPORARYIMAGE_2 &>> $LOGFILE
 
 	if [ ! $? -eq 0 ]
@@ -526,7 +525,7 @@ function updateBaseImage ()
 		exit 1
 	fi
 
-	printf "\t[8/8] Cleaning up\n"
+	printf "\t[7/7] Cleaning up\n"
 	# clean VM used for preparing the machine and also temporary image
 	virsh undefine $VMNAME &>> $LOGFILE
 	cleanUp $TEMPORARYIMAGE $IMGFILE
@@ -543,7 +542,7 @@ function createEnvironment ()
 
     printf "Creating FreeIPA server machine\n"
 
-    printf "\t[1/5] Creating and starting server VM\n"
+    printf "\t[1/3] Creating and starting server VM\n"
     virtCreate $IMGFILE "$IMGDIR/$SERVERNAME.qcow2" $SERVERNAME $VCPU $VRAM $ARCH $LOGFILE
 
     # get server ip
@@ -551,7 +550,7 @@ function createEnvironment ()
 
     waitForStart $SERVERIP $SSHKEY_FILENAME $LOGFILE
 
-    printf "\t[4/5] Installing freeipa-server on server VM. This could take few minutes\n"
+    printf "\t[2/3] Installing freeipa-server on server VM. This could take few minutes\n"
     # install freeipa-server
     ssh $SSHOPT root@$SERVERIP -i $SSHKEY_FILENAME "sh ~/$SERVERSH -d $DOMAIN -c $SERVERHOSTNAME -r $REALM -p $PASSWORD -e $PASSWORD" &>> $LOGFILE
 
@@ -566,7 +565,7 @@ function createEnvironment ()
         exit 1
     fi
 
-    printf "\t[5/5] Adding '$USERNAME' user \n"
+    printf "\t[3/3] Adding '$USERNAME' user \n"
     # add user ipademo to freeipa
     ssh $SSHOPT root@$SERVERIP -i $SSHKEY_FILENAME "printf \"$USERNAME\n$USERNAME\" | sudo ipa user-add $USERNAME --first=ipa --last=demo --password" &>> $LOGFILE
 
@@ -587,7 +586,7 @@ function createEnvironment ()
         CLIENTNAME=`createMachineName $CLIENTBASENAME-$CLIENTCNT`
         CLIENTHOSTNAME="client-$CLIENTCNT"
 
-        printf "\t[1/5] Creating and starting client VM\n"
+        printf "\t[1/3] Creating and starting client VM\n"
         virtCreate $IMGFILE "$IMGDIR/$CLIENTNAME.qcow2" $CLIENTNAME $VCPU $VRAM $ARCH $LOGFILE
         
         # get server ip
@@ -603,7 +602,7 @@ function createEnvironment ()
         echo "Connection via ssh: ssh $SSHOPT $USERNAME@$CLIENTIP" >> $HOSTFILE
         echo "" >> $HOSTFILE
 
-        printf "\t[4/5] Adding machine to IPA DOMAIN\n"
+        printf "\t[2/3] Adding machine to IPA DOMAIN\n"
         # add host to IPA
         ssh $SSHOPT -i $SSHKEY_FILENAME root@"$SERVERIP" "ipa host-add $CLIENTHOSTNAME.$DOMAIN --ip-address=$CLIENTIP --password=$PASSWORD" &>> $LOGFILE
         
@@ -614,7 +613,7 @@ function createEnvironment ()
             exit 1
         fi
 
-        printf "\t[5/5] Installing freeipa-client on client's VM\n"
+        printf "\t[3/3] Installing freeipa-client on client's VM\n"
         
         ssh $SSHOPT -i $SSHKEY_FILENAME root@"$CLIENTIP" "sh ~/$CLIENTSH -d $DOMAIN -c $CLIENTHOSTNAME -s $SERVERHOSTNAME -p $PASSWORD -n $SERVERIP" &>> $LOGFILE
 
