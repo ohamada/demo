@@ -17,6 +17,7 @@ bootloader --location=mbr --append="console=tty0 console=ttyS0,115200 rd_NO_PLYM
 zerombr
 clearpart --all --initlabel
 autopart
+xconfig --startxonboot
 
 # basic packages to install
 %packages
@@ -47,8 +48,6 @@ firefox
 set -x
 
 yum update -y --nogpgcheck --enablerepo=updates-testing
-
-ln -s --force /lib/systemd/system/graphical.target /etc/systemd/system/default.target
 
 ) > /root/ks-post-install.log
 %end
