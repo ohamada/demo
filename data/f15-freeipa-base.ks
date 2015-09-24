@@ -1,7 +1,8 @@
 # Kickstart file for Fedora 15 with freeipa-server
 install
 text
-reboot
+cmdline
+poweroff
 lang en_US.UTF-8
 keyboard us
 network --bootproto dhcp

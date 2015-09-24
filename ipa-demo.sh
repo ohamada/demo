@@ -335,20 +335,6 @@ function createDiskImage ()
 	fi
 }
 
-# function to get PID - get PID of process which handles virtual machine installation
-# first argument - name of virtual machine
-function getVirtInstPid {
-	ps -eo pid,args | grep -v grep | grep "$1" | head -1 | awk '{ print $1}'
-}
-
-# function to wait for completion of installation of virtual machine
-# first argument - name of virtual machine currently installed
-function waitForInst {
-	while [ ! -z `getVirtInstPid $1` ]; do
-		sleep 30
-	done
-}
-
 # function to generate ssh keys to allow file operations over scp
 # $1 - name of key
 # $2 - log file
@@ -406,9 +392,10 @@ function virtInstall {
 	    --check-cpu \
 	    --accelerate \
 	    --hvm \
-	    --vnc \
 	    --os-type=linux \
-	    --noautoconsole &>> $LOGFILE
+	    --graphics none \
+	    --noreboot &>> $LOGFILE
+
 
 # with this option the program won't work on rhel
 # 	    --os-variant=fedora15 \
@@ -430,8 +417,6 @@ function createBaseImage ()
 
 	printf "\t[2/4] Creating virtual machine. This action can take several minutes!\n"
 	virtInstall $TEMPORARYIMAGE $VMNAME $KSFILE $OSREPOSITORY $DISKSIZE $SSHKEY_FILENAME $LOGFILE
-
-	waitForInst $VMNAME
 
 	printf "\t[3/4] Saving image into $IMGFILE\n"
 	mv $TEMPORARYIMAGE $IMGFILE
