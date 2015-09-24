@@ -63,12 +63,14 @@ VRAM=1024
 # ARCHitecture
 ARCH=x86_64
 # fedora os version
-OSVERSION=16
+OSVERSION=22
+# fedora flavour
+FLAVOR=Workstation
 # disk size
 DISKSIZE=10
 
 # fedora repository
-OSREPOSITORY=http://download.fedoraproject.org/pub/fedora/linux/releases/$OSVERSION/Fedora/$ARCH/os
+OSREPOSITORY=http://download.fedoraproject.org/pub/fedora/linux/releases/$OSVERSION/$FLAVOR/$ARCH/os
 
 # make all commands visible
 CREATEBASE=0

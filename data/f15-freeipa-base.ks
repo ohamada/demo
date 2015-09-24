@@ -27,7 +27,6 @@ repo --name=testing --mirrorlist=https://mirrors.fedoraproject.org/mirrorlist?re
 # packages to install
 %packages
 @core
-@base
 @base-x
 @fonts
 @LXDE
