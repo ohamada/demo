@@ -19,6 +19,10 @@ clearpart --all --initlabel
 autopart
 xconfig --startxonboot
 
+repo --name=fedora --mirrorlist=https://mirrors.fedoraproject.org/mirrorlist?repo=fedora-$releasever&arch=$basearch
+repo --name=updates --mirrorlist=https://mirrors.fedoraproject.org/mirrorlist?repo=updates-released-f$releasever&arch=$basearch
+repo --name=testing --mirrorlist=https://mirrors.fedoraproject.org/mirrorlist?repo=updates-testing-f$releasever&arch=$basearch
+
 # basic packages to install
 %packages
 @core
@@ -46,6 +50,5 @@ firefox
 %post --log=/root/ks-post-install.log
 set -x
 
-yum update -y --nogpgcheck --enablerepo=updates-testing
 
 %end
