@@ -480,7 +480,7 @@ function updateBaseImage ()
 	fi
 
     printf "\t[3/7] Updating VM's system\n"
-    ssh $SSHOPT -i $SSHKEY_FILENAME root@$MACHINEIP 'yum update -y --enablerepo=updates-testing' &>> $LOGFILE
+    ssh $SSHOPT -i $SSHKEY_FILENAME root@$MACHINEIP 'dnf update -y --enablerepo=updates-testing' &>> $LOGFILE
 	if [ ! $? -eq 0 ]
 	then
 		echo "Can not connect to VM." >&2
