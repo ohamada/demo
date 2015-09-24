@@ -609,7 +609,7 @@ function updateBaseImage ()
     mv $TEMPORARYIMAGE_2 $IMGFILE
     cleanUp $TEMPORARYIMAGE_
 	
-    echo "Finished: Base image for installation is ready in $IMAGEFILE"
+    echo "Finished: Base image for installation is ready in $IMGFILE"
 }
 
 function createEnvironment ()
