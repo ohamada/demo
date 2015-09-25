@@ -142,5 +142,3 @@ service network restart
 
 # run the install
 ipa-client-install --server=$serverhostname.$domain --domain=$domain --hostname=$clienthostname.$domain --password=$password --enable-dns-updates --mkhomedir -U
-# need to reboot in order to allow ipademo user using graphical desktop environmnet
-reboot

@@ -646,6 +646,9 @@ function createEnvironment ()
             fi
         fi
         
+        # need to reboot in order to allow ipademo user using graphical desktop environmnet
+        ssh $SSHOPT -i $SSHKEY_FILENAME root@"$CLIENTIP" "reboot"
+
         echo "Client-$CLIENTCNT installation done."
         CLIENTCNT=$(($CLIENTCNT + 1))
     # end while
