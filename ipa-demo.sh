@@ -59,7 +59,7 @@ CLIENTBASENAME=ipademo-client
 # number of cpu's used by virtual machine
 VCPU=1
 # availible ram in MiB
-VRAM=1024
+VRAM=512
 # ARCHitecture
 ARCH=x86_64
 # fedora os version
