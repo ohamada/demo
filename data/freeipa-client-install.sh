@@ -1,39 +1,55 @@
 #!/bin/bash
 
+#function to get a network interface
+function getif()
+{
+    local LANG=en_US
+	/sbin/ifconfig | awk -F: '/^[ \t]/ || /^lo:/ {next} {print $1; exit}'
+}
+
 #function to get IP address of local computer
 function getlocalip()
 {
     local LANG=en_US
-	/sbin/ifconfig ${1:-eth0} | awk '/inet addr/ {print $2}' | awk -F: '{print $2}';
+	/sbin/ifconfig $1 | awk '/inet.*netmask.*broadcast/ {print $2}'
 }
 
 #function to get bcast address for local computer
 function getbcast()
 {
     local LANG=en_US
-	/sbin/ifconfig ${1:-eth0} | awk '/Bcast/ {print $3}' | awk -F: '{print $2}';
+	/sbin/ifconfig $1 | awk '/inet.*netmask.*broadcast/ {print $6}'
 }
 
 #function to get network mask for local computer
 function getnetmask()
 {
     local LANG=en_US
-	/sbin/ifconfig ${1:-eth0} | awk '/Mask/ {print $4}' | awk -F: '{print $2}';
+	/sbin/ifconfig $1 | awk '/inet.*netmask.*broadcast/ {print $4}'
+}
+
+#function to get the default route for local computer
+function getgateway()
+{
+    local LANG=en_US
+	/sbin/route -n | awk "/^0.0.0.0.*$1\$/ {print \$2}"
 }
 
 # function to prepare config file for setting static ip address
-# $1 - full path to config file
+# $1 - network interface
 # $2 - hostname
 # $3 - domain
 # $4 - [optional] address of dns server
-function configeth0 {
-	localip=`getlocalip`
-	echo "DEVICE=eth0" > $1
-	echo "BOOTPROTO=static" >> $1
-	echo "ONBOOT=yes" >> $1
-	echo "IPADDR=$localip" >> $1
-	echo "BROADCAST=`getbcast`" >> $1
-	echo "NETMASK=`getnetmask`" >> $1
+function confignet {
+	ifcfg=/etc/sysconfig/network-scripts/ifcfg-$1
+	localip=`getlocalip $1`
+	echo "DEVICE=$1" > $ifcfg
+	echo "BOOTPROTO=static" >> $ifcfg
+	echo "ONBOOT=yes" >> $ifcfg
+	echo "IPADDR=$localip" >> $ifcfg
+	echo "BROADCAST=`getbcast $1`" >> $ifcfg
+	echo "NETMASK=`getnetmask $1`" >> $ifcfg
+	echo "GATEWAY=`getgateway $1`" >> $ifcfg
 	if [ ! -z $4 ]
 	then
 		echo "DNS1=$4" >> $1
@@ -63,8 +79,7 @@ function printhelp()
 }
 
 
-clientip=`getlocalip`
-eth0conf=/etc/sysconfig/network-scripts/ifcfg-eth0
+clientip=`getlocalip $(getif)`
 dns=""
 serverhostname=""
 domain=""
@@ -120,11 +135,10 @@ service NetworkManager stop
 chkconfig NetworkManager off
 chkconfig network on
 
-configeth0 $eth0conf $clienthostname $domain $dns
+find /etc/sysconfig/network-scripts -name ifcfg-\* -not -name ifcfg-lo -delete
+confignet $(getif) $clienthostname $domain $dns
 
 service network restart
 
 # run the install
 ipa-client-install --server=$serverhostname.$domain --domain=$domain --hostname=$clienthostname.$domain --password=$password --enable-dns-updates --mkhomedir -U
-# need to reboot in order to allow ipademo user using graphical desktop environmnet
-reboot

@@ -23,11 +23,8 @@ BASEIMAGE=""
 # configuration data necessary for installation
 BASEMACHINE_NAME=ipademo-base
 
-# kickstart files for server and clients
-KSSERVER=f15-freeipa-base.ks
-
 # kickstart file
-KSFILE=$DATADIR/f15-freeipa-base.ks.temp
+KSFILE=$DATADIR/f15-freeipa-base.ks
 
 # file containg VM names and ip addresses
 HOSTFILE=hosts.txt
@@ -61,17 +58,19 @@ CLIENTBASENAME=ipademo-client
 
 # number of cpu's used by virtual machine
 VCPU=1
-# availible ram ( 1 gb = 1048576 )
-VRAM=1048576
+# availible ram in MiB
+VRAM=512
 # ARCHitecture
 ARCH=x86_64
 # fedora os version
-OSVERSION=16
+OSVERSION=22
+# fedora flavour
+FLAVOR=Workstation
 # disk size
 DISKSIZE=10
 
 # fedora repository
-OSREPOSITORY=http://download.fedoraproject.org/pub/fedora/linux/releases/$OSVERSION/Fedora/$ARCH/os
+OSREPOSITORY=http://download.fedoraproject.org/pub/fedora/linux/releases/$OSVERSION/$FLAVOR/$ARCH/os
 
 # make all commands visible
 CREATEBASE=0
@@ -318,40 +317,6 @@ function createDiskName ()
     fi    
 }
 
-# function for creating disk images based on base image
-# $1 - base image location
-# $2 - new image
-# $3 - log file
-function createDiskImage ()
-{
-	if [ -f "$2" ]
-	then
-		echo "Image file $2 already exists!" >&2
-		exit 1
-	fi
-	qemu-img create -b $1 -f qcow2 "$2" &>> $3
-	
-	if [ ! $? -eq 0 ]
-	then
-		echo "Unable to create VM's disk image! Check log file: $3"
-		exit 1
-	fi
-}
-
-# function to get PID - get PID of process which handles virtual machine installation
-# first argument - name of virtual machine
-function getVirtInstPid {
-	ps -eo pid,args | grep -v grep | grep "$1" | head -1 | awk '{ print $1}'
-}
-
-# function to wait for completion of installation of virtual machine
-# first argument - name of virtual machine currently installed
-function waitForInst {
-	while [ ! -z `getVirtInstPid $1` ]; do
-		sleep 30
-	done
-}
-
 # function to generate ssh keys to allow file operations over scp
 # $1 - name of key
 # $2 - log file
@@ -382,12 +347,13 @@ function createSshCert {
 # $3 - kickstart file
 # $4 - os repository
 # $5 - disk size
-# $6 - log file
+# $6 - ssh key
+# $7 - log file
 
 function virtInstall {
 	
 	#prepare image for ipa-server
-	qemu-img create -f qcow2 -o preallocation=metadata "$1" "$5"G &>> $6
+	qemu-img create -f qcow2 -o preallocation=metadata "$1" "$5"G &>> $7
 	
 	if [ ! $? -eq 0 ]
 	then
@@ -399,8 +365,8 @@ function virtInstall {
 	virt-install --connect=qemu:///system \
 	    --initrd-inject="$3" \
 	    --name="$2" \
-	    --extra-args="ks=file:/$3 \
-	      console=tty0 console=ttyS0,115200" \
+	    --extra-args="ks=file:/$(basename $3) \
+	      console=tty0 console=ttyS0,115200 ssh_key='$(cat "$6".pub)'" \
 	    --location="$4" \
 	    --disk path="$1",format=qcow2 \
 	    --ram 1024 \
@@ -408,9 +374,10 @@ function virtInstall {
 	    --check-cpu \
 	    --accelerate \
 	    --hvm \
-	    --vnc \
 	    --os-type=linux \
-	    --noautoconsole &>> $LOGFILE
+	    --graphics none \
+	    --noreboot &>> $LOGFILE
+
 
 # with this option the program won't work on rhel
 # 	    --os-variant=fedora15 \
@@ -420,79 +387,70 @@ function virtInstall {
 		echo "Unable to create virtual machine!"
 		virsh undefine $2
 		rm -f $1
-		rm -f $3
 		exit 1
 	fi
 }
 
-# function for editing kickstartfile
-# first param - template
-# second param - output file
-# third param - user name
-function prepareKickstart {
-	tempfile=tmp
-	pkgs=`cat $1 | awk '{if($1=="%packages") print NR}'`
-	lines=`cat $1 | wc -l`
-	lines=$(($lines-$pkgs))
-	head -$pkgs $1 > $tempfile
-	echo "" >> $tempfile
-	tail -$lines $1 >> $tempfile
 
-	lines=`cat $tempfile | wc -l`
-	lines=$(($lines-2))
-	head -$lines $tempfile > $2
-	
-	# install all ipa dependencies except ds, pki a freeipa pkgs
-	# bind must be added manually since it's not in ipa dependencies
-	echo "yum -y install --nogpgcheck --enablerepo=updates-testing bind bind-dyndb-ldap" >> $2
-	# get ipa dependencies
-	echo "yum -y install --nogpgcheck --enablerepo=updates-testing \`yum deplist freeipa-server | grep -v pki | grep -v freeipa | grep -v dogtag | grep -v 389-ds | grep -v / | grep -v \".*\.so.*\" | grep \"dependency:\" | awk '{print \$2}' | awk -F\( '{print \$1}' | uniq -u | tr '\n' ' '\`" >> $2
-	
-	echo "cd /root/" >> $2
-	echo "mkdir --mode=700 .ssh" >> $2
-	echo "echo \"`cat $4.pub`\">>.ssh/authorized_keys" >> $2
-	echo "chmod 600 .ssh/authorized_keys" >> $2
-	
-	echo "" >> $2
-	# delete requiretty from /etc/sudoers
-	echo "mv /etc/sudoers /etc/sudoers_old" >> $2
-	echo "cat /etc/sudoers_old | grep -v requiretty > /etc/sudoers" >> $2
-	echo "chmod 440 /etc/sudoers" >> $2
-	# add user to sudoer list so that he can use sudo without password
-	echo "echo \"%ipausers       ALL = NOPASSWD: ALL\" >> /etc/sudoers" >> $2
-	# Various authenticaion config changes
-	# Fix SELinux context on the newly created authorized_keys file
-	echo "restorecon /root/.ssh/authorized_keys" >> $2
-	# close the post section
-	tail -2 $tempfile >> $2
-	
-	#cleanUp
-	rm -f $tempfile
+#function for cloning an image and preparing a virtual machine
+# $1 - original image file
+# $2 - resulting snapshot image
+# $3 - name of machine
+# $4 - number of cpus
+# $5 - MiBs of memory
+# $6 - architecture
+# $7 - log file
+function virtCreate ()
+{
+	if [ -f "$2" ]
+	then
+		echo "Image file $2 already exists!" >&2
+		exit 1
+	fi
+	qemu-img create -b $1 -f qcow2 "$2" &>> $7
+
+	if [ ! $? -eq 0 ]
+	then
+		echo "Unable to create VM's disk image! Check log file: $7"
+		exit 1
+	fi
+
+	#install ipa-server vm
+	virt-install --connect=qemu:///system \
+	    --name="$3" \
+	    --disk path="$2" \
+	    --ram $5 \
+	    --vcpus=$4 \
+	    --arch $6 \
+	    --check-cpu \
+	    --accelerate \
+	    --hvm \
+	    --os-type=linux \
+	    --graphics vnc \
+	    --boot hd \
+	    --noautoconsole &>> $7 \
+
+	if [ ! $? -eq 0 ]
+	then
+		echo "Unable to create VM! Check log file: $7" >&2
+		cleanVMs $3
+		cleanUp $2
+		exit 1
+	fi
 }
 
 function createBaseImage ()
 {
     printf "Creating base image\n"
 
-	printf "\t[1/4] Preparing kickstart file\n"
-	prepareKickstart $KSFILE $KSSERVER $USERNAME $SSHKEY_FILENAME
-	
-	echo "Kickstart file for ipa-base machine:" >> $LOGFILE
-	cat $KSSERVER >> $LOGFILE
-
     VMNAME=`createMachineName $BASEMACHINE_NAME`
 
-	printf "\t[2/4] Creating virtual machine. This action can take several minutes!\n"
-	virtInstall $TEMPORARYIMAGE $VMNAME $KSSERVER $OSREPOSITORY $DISKSIZE $LOGFILE
+	printf "\t[1/2] Creating virtual machine. This action can take several minutes!\n"
+	virtInstall $TEMPORARYIMAGE $VMNAME $KSFILE $OSREPOSITORY $DISKSIZE $SSHKEY_FILENAME $LOGFILE
 
-	waitForInst $VMNAME
-
-	printf "\t[3/4] Saving image into $IMGFILE\n"
+	printf "\t[2/2] Saving image into $IMGFILE\n"
 	mv $TEMPORARYIMAGE $IMGFILE
 	
-	printf "\t[4/4] Cleaning up\n"	
-	cleanUp $KSSERVER
-    
     virsh undefine $VMNAME
 
 	echo "Finished! New base image is saved in $IMGFILE !"
@@ -502,35 +460,14 @@ function createBaseImage ()
 function updateBaseImage ()
 {
     printf "Updating base image\n"
-    qemu-img create -b $IMGFILE -f qcow2 $TEMPORARYIMAGE &>> $LOGFILE
-    
-    if [ ! $? -eq 0 ]
-	then
-		echo "Unable to create temporary disk image! Check log file: $LOGFILE" >&2
-		exit 1
-	fi
 
     VMNAME=`createMachineName $BASEMACHINE_NAME`
 
-	# prepare xml definition of VM that will be used to run system update
-	virtImageXml $VMNAME $TEMPORARYIMAGE $VCPU $VRAM $ARCH
-	
-	printf "\t[1/8] Creating virtual machine for image update\n"
-	# start VM defined by XML file
-	virt-image $VMNAME.xml &>> $LOGFILE
-	
-	if [ ! $? -eq 0 ]
-	then
-		echo "Unable to create VM! Check log file: $LOGFILE" >&2
-		cleanVMs $VMNAME
-		cleanUp $VMNAME.xml $TEMPORARYIMAGE
-		exit 1
-	fi
-	
-	rm -f $VMNAME.xml
+	printf "\t[1/7] Creating and starting server VM\n"
+	virtCreate $IMGFILE $TEMPORARYIMAGE $VMNAME $VCPU $VRAM $ARCH $LOGFILE
 	
 	# get the machine ip
-	printf "\t[2/8] Starting virtual machine\n"
+	printf "\t[2/7] Starting virtual machine\n"
 	MACHINEIP=`getVmIp $VMNAME`
 	
 	waitForStart $MACHINEIP $SSHKEY_FILENAME $LOGFILE
@@ -542,9 +479,8 @@ function updateBaseImage ()
 		exit 1
 	fi
 
-    printf "Updating VM's system and FreeIPA installation\n"
-    printf "\t[3/8] Updating VM's system\n"
-    ssh $SSHOPT -i $SSHKEY_FILENAME root@$MACHINEIP 'yum update -y --enablerepo=updates-testing' &>> $LOGFILE
+    printf "\t[3/7] Updating VM's system\n"
+    ssh $SSHOPT -i $SSHKEY_FILENAME root@$MACHINEIP 'dnf update -y --enablerepo=updates-testing' &>> $LOGFILE
 	if [ ! $? -eq 0 ]
 	then
 		echo "Can not connect to VM." >&2
@@ -552,19 +488,9 @@ function updateBaseImage ()
 		exit 1
 	fi
 
-    printf "\t[4/8] Installing FreeIPA packages\n"
-    ssh $SSHOPT -i $SSHKEY_FILENAME root@$MACHINEIP 'yum install -y --enablerepo=updates-testing freeipa-server' &>> $LOGFILE
-    if [ ! $? -eq 0 ]
-    then
-        echo "Freeipa-server installation failed." >&2
-        cleanVMs $VMNAME
-        cleanUp $TEMPORARYIMAGE
-        exit 1
-    fi
-
-    printf "\t[5/8] Copying installation scripts to the VM\n"
+    printf "\t[4/7] Copying installation scripts to the VM\n"
     # copy server install script to server
-    cat $LOCALSERVERSH | ssh $SSHOPT -i $SSHKEY_FILENAME root@"$MACHINEIP" "cat ->>~/$SERVERSH" &>> $LOGFILE
+    cat $LOCALSERVERSH | ssh $SSHOPT -i $SSHKEY_FILENAME root@"$MACHINEIP" "cat >~/$SERVERSH" &>> $LOGFILE
     if [ ! $? -eq 0 ]
     then
         echo "Unable to connect to VM." >&2
@@ -574,7 +500,7 @@ function updateBaseImage ()
     fi
 
     # copy client install script to client and execute it
-    cat $LOCALCLIENTSH | ssh $SSHOPT -i $SSHKEY_FILENAME root@"$MACHINEIP" "cat ->>~/$CLIENTSH" &>> $LOGFILE
+    cat $LOCALCLIENTSH | ssh $SSHOPT -i $SSHKEY_FILENAME root@"$MACHINEIP" "cat >~/$CLIENTSH" &>> $LOGFILE
     if [ ! $? -eq 0 ]
     then
         echo "Unable to connect to the client VM." >&2
@@ -583,14 +509,14 @@ function updateBaseImage ()
         exit 1
     fi
 
-    printf "\t[6/8] Shuting down the VM\n"
+    printf "\t[5/7] Shuting down the VM\n"
 	ssh $SSHOPT -i $SSHKEY_FILENAME root@$MACHINEIP 'shutdown' &>> $LOGFILE
 
 	waitForEnd $VMNAME
 
     TEMPORARYIMAGE_2=`createDiskName $TEMPIMAGE_PATTERN`
 
-	printf "\t[7/8] Saving new base image\n"
+	printf "\t[6/7] Saving new base image\n"
 	qemu-img convert $TEMPORARYIMAGE -O qcow2 $TEMPORARYIMAGE_2 &>> $LOGFILE
 
 	if [ ! $? -eq 0 ]
@@ -601,7 +527,7 @@ function updateBaseImage ()
 		exit 1
 	fi
 
-	printf "\t[8/8] Cleaning up\n"
+	printf "\t[7/7] Cleaning up\n"
 	# clean VM used for preparing the machine and also temporary image
 	virsh undefine $VMNAME &>> $LOGFILE
 	cleanUp $TEMPORARYIMAGE $IMGFILE
@@ -609,7 +535,7 @@ function updateBaseImage ()
     mv $TEMPORARYIMAGE_2 $IMGFILE
     cleanUp $TEMPORARYIMAGE_
 	
-    echo "Finished: Base image for installation is ready in $IMAGEFILE"
+    echo "Finished: Base image for installation is ready in $IMGFILE"
 }
 
 function createEnvironment ()
@@ -617,34 +543,16 @@ function createEnvironment ()
     printf "Creating VM environment\n"
 
     printf "Creating FreeIPA server machine\n"
-    printf "\t[1/5] Creating disk image for server VM\n"
-    # create disk image for new VM
-    createDiskImage $IMGFILE "$IMGDIR/$SERVERNAME.qcow2" $LOGFILE
-    printf "\t[2/5] Creating definition file for server VM\n"
-    # prepare xml definition of VM that will be used to run system update
-    SERVERNAME=`createMachineName $SERVERNAME`
-    virtImageXml $SERVERNAME "$IMGDIR/$SERVERNAME.qcow2" $VCPU $VRAM $ARCH
-    printf "\t[3/5] Starting server VM\n"
-    # start VM defined by XML file
-    virt-image $SERVERNAME.xml &>> $LOGFILE
 
-    if [ ! $? -eq 0 ]
-    then
-        echo "Unable to create VM! Check log file: $LOGFILE"
-        cleanVMs
-        cleanUp $SERVERNAME.xml $IMGDIR/$SERVERNAME.qcow2
-        exit 1
-    fi
-
-    # remove xml file
-    cleanUp $SERVERNAME.xml
+    printf "\t[1/3] Creating and starting server VM\n"
+    virtCreate $IMGFILE "$IMGDIR/$SERVERNAME.qcow2" $SERVERNAME $VCPU $VRAM $ARCH $LOGFILE
 
     # get server ip
     SERVERIP=`getVmIp $SERVERNAME`
 
     waitForStart $SERVERIP $SSHKEY_FILENAME $LOGFILE
 
-    printf "\t[4/5] Installing freeipa-server on server VM. This could take few minutes\n"
+    printf "\t[2/3] Installing freeipa-server on server VM. This could take few minutes\n"
     # install freeipa-server
     ssh $SSHOPT root@$SERVERIP -i $SSHKEY_FILENAME "sh ~/$SERVERSH -d $DOMAIN -c $SERVERHOSTNAME -r $REALM -p $PASSWORD -e $PASSWORD" &>> $LOGFILE
 
@@ -659,7 +567,7 @@ function createEnvironment ()
         exit 1
     fi
 
-    printf "\t[5/5] Adding '$USERNAME' user \n"
+    printf "\t[3/3] Adding '$USERNAME' user \n"
     # add user ipademo to freeipa
     ssh $SSHOPT root@$SERVERIP -i $SSHKEY_FILENAME "printf \"$USERNAME\n$USERNAME\" | sudo ipa user-add $USERNAME --first=ipa --last=demo --password" &>> $LOGFILE
 
@@ -679,26 +587,9 @@ function createEnvironment ()
         echo "Installing client $(($CLIENTCNT+1)) of $CLIENTNR"
         CLIENTNAME=`createMachineName $CLIENTBASENAME-$CLIENTCNT`
         CLIENTHOSTNAME="client-$CLIENTCNT"
-        
-        printf "\t[1/5] Creating disk image for client VM\n"
-        # create disk image for new VM
-        createDiskImage $IMGFILE "$IMGDIR/$CLIENTNAME.qcow2" $LOGFILE
-        printf "\t[2/5] Creating definition file for server VM\n"
-        # prepare xml definition of VM that will be used to run system update
-        virtImageXml $CLIENTNAME "$IMGDIR/$CLIENTNAME.qcow2" $VCPU $VRAM $ARCH
-        printf "\t[3/5] Starting client VM\n"
-        # start VM defined by XML file
-        virt-image $CLIENTNAME.xml &>> $LOGFILE
 
-        if [ ! $? -eq 0 ]
-        then
-            echo "Unable to create VM! Check log file: $LOGFILE"
-            cleanUp $CLIENTNAME.xml
-            cleanVMs
-            exit 1
-        fi
-
-        cleanUp $CLIENTNAME.xml
+        printf "\t[1/3] Creating and starting client VM\n"
+        virtCreate $IMGFILE "$IMGDIR/$CLIENTNAME.qcow2" $CLIENTNAME $VCPU $VRAM $ARCH $LOGFILE
         
         # get server ip
         CLIENTIP=`getVmIp $CLIENTNAME`
@@ -713,7 +604,7 @@ function createEnvironment ()
         echo "Connection via ssh: ssh $SSHOPT $USERNAME@$CLIENTIP" >> $HOSTFILE
         echo "" >> $HOSTFILE
 
-        printf "\t[4/5] Adding machine to IPA DOMAIN\n"
+        printf "\t[2/3] Adding machine to IPA DOMAIN\n"
         # add host to IPA
         ssh $SSHOPT -i $SSHKEY_FILENAME root@"$SERVERIP" "ipa host-add $CLIENTHOSTNAME.$DOMAIN --ip-address=$CLIENTIP --password=$PASSWORD" &>> $LOGFILE
         
@@ -724,7 +615,7 @@ function createEnvironment ()
             exit 1
         fi
 
-        printf "\t[5/5] Installing freeipa-client on client's VM\n"
+        printf "\t[3/3] Installing freeipa-client on client's VM\n"
         
         ssh $SSHOPT -i $SSHKEY_FILENAME root@"$CLIENTIP" "sh ~/$CLIENTSH -d $DOMAIN -c $CLIENTHOSTNAME -s $SERVERHOSTNAME -p $PASSWORD -n $SERVERIP" &>> $LOGFILE
 
@@ -755,6 +646,9 @@ function createEnvironment ()
             fi
         fi
         
+        # need to reboot in order to allow ipademo user using graphical desktop environmnet
+        ssh $SSHOPT -i $SSHKEY_FILENAME root@"$CLIENTIP" "reboot"
+
         echo "Client-$CLIENTCNT installation done."
         CLIENTCNT=$(($CLIENTCNT + 1))
     # end while
