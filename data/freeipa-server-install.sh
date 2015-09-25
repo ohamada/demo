@@ -28,6 +28,13 @@ function getnetmask()
 	/sbin/ifconfig $1 | awk '/inet.*netmask.*broadcast/ {print $4}'
 }
 
+#function to get the default route for local computer
+function getgateway()
+{
+    local LANG=en_US
+	/sbin/route -n | awk "/^0.0.0.0.*$1\$/ {print \$2}"
+}
+
 # function to prepare config file for setting static ip address
 # $1 - network interface
 # $2 - hostname
@@ -42,6 +49,7 @@ function confignet {
 	echo "IPADDR=$localip" >> $ifcfg
 	echo "BROADCAST=`getbcast $1`" >> $ifcfg
 	echo "NETMASK=`getnetmask $1`" >> $ifcfg
+	echo "GATEWAY=`getgateway $1`" >> $ifcfg
 	if [ ! -z $4 ]
 	then
 		echo "DNS1=$localip" >> $ifcfg
